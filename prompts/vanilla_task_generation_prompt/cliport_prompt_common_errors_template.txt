@@ -1,0 +1,45 @@
+Before writing the code for the task "TASK_NAME_TEMPLATE". Here are some runtime errors that you do not want to make. Please confirm that you understand these runtime errors.
+To give you a better understanding of these runtime errors, I will match each runtime error with a specific reason why it is wrong, so please reason carefully.
+
+{
+    TypeError: 'NoneType' object is not iterable
+    Reason: The error message "TypeError: 'NoneType' object is not iterable" typically occurs when you try to iterate over an object that is None. In Python, None is a special constant representing the absence of a value or a null value.
+}
+{
+    pybullet.error: Cannot load URDF file.
+    Reason: Here are some common reasons for this error: File Path Incorrect, File Not Found, File Content Issues, Permission Issues
+}
+{
+    IndexError: tuple index out of range
+    Reason: The error message "IndexError: tuple index out of range" indicates that you are trying to access an index in a tuple that is beyond the valid range of indices for that tuple.
+}
+{
+    IndexError: list index out of range
+    Reason: The error message "IndexError: list index out of range" indicates that you are trying to access an index in a list that is beyond the valid range of indices for that list.
+}
+{
+    TypeError: object of type 'int' has no len()
+    Reason: The error message "TypeError: object of type 'int' has no len()" indicates that you are trying to use the len() function on an object of type int (integer), but integers do not have a defined length.
+}
+{
+    TypeError: can only concatenate str (not "list") to str
+    Reason: The error message "TypeError: can only concatenate str (not 'list') to str" typically occurs when you attempt to use the + operator to concatenate a string and a list directly.
+}
+{
+    AttributeError: module 'cliport.utils.utils' has no attribute 'COLOR_NAMES'
+    Reason: The error message "AttributeError: module 'cliport.utils.utils' has no attribute 'COLOR_NAMES'" indicates that within the module cliport.utils.utils, there is an attempt to access an attribute named COLOR_NAMES, but this attribute is not defined in that module.
+}
+
+You do not want to make mistakes such as
+- using assets (urdfs) that do not exist
+- use ambiguous language descriptions as goals. For instance, "place the colored blocks into the matching colored bowls" with one goal and sparse reward as the task instead of adding subgoal "place blue block into blue bowl" and give continuous reward. 
+- `matches` in the goal has wrong dimensions. It should have the same dimensions as number of objects (N) multiplied by the number of goal poses (M). Usually it is N by M.
+- have vector dimension problem such as `np.random.choice(box_size)` or `box_size / 2` where `box_size` is a tuple and not an int
+- make too large an object for stacking or make the task objects invisible for picking. 
+- accessing index out of bound `pallet_pose[2]` for `pallet_pose`.  `pallet_pose=get_random_pose` returns a tuple (translation, rotation). It does not have 3rd component. Similarly accessing `container_pose[2]` or `box_pose[2]` would cause errors as well. Since it's a tuple, try to modify it in-place will also trigger errors.
+- forget to replace str using `fill_template()` for urdfs with template such as `cylinder-template.urdf`. `ball-template.urdf`, `line-template.urf`. 
+- use `self.ee = Spatula()` as a function when doing pushing tasks, which is incorrect. It should be `self.ee = Spatula`.
+- forget to compute target poses `targ_poses` for matching. Do not use object IDs for poses.
+- change colors of complex objects such as `zone`. You can only change color of teomplate primitive such as `cylinder-template`.
+- mistakenly use `random_pose` for target pose. Design target poses based on task objectives.
+- add only one or fewer language goals which causes language-motion inconsistentcy. Note that the language goals usually are the same number as the pick and place goals.

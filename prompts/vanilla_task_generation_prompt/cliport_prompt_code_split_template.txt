@@ -1,0 +1,278 @@
+Now I will provide you some reference code and you can write the code for the task "TASK_NAME_TEMPLATE".
+
+
+"""
+import os
+
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+
+
+class PackingShapes(Task):
+    """pick up randomly sized shapes and place them tightly into a container."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 1
+        self.homogeneous = False
+
+        self.lang_template = "pack the {obj} in the brown box"
+        self.task_completed_desc = "done packing shapes."
+        self.additional_reset()
+
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Shape Names:
+        shapes = utils.assembling_kit_shapes
+
+        n_objects = 5
+        if self.mode == 'train':
+            obj_shapes = np.random.choice(self.train_set, n_objects, replace=False)
+        else:
+            if self.homogeneous:
+                obj_shapes = [np.random.choice(self.test_set, replace=False)] * n_objects
+            else:
+                obj_shapes = np.random.choice(self.test_set, n_objects, replace=False)
+
+        # Shuffle colors to avoid always picking an object of the same color
+        colors, color_names = utils.get_colors(mode=self.mode)
+
+        # Add container box.
+        zone_size = self.get_random_size(0.1, 0.15, 0.1, 0.15, 0.05, 0.05)
+        zone_pose = self.get_random_pose(env, zone_size)
+        container_template = 'container/container-template.urdf'
+        replace = {'DIM': zone_size, 'HALF': (zone_size[0] / 2, zone_size[1] / 2, zone_size[2] / 2)}
+        # IMPORTANT: REPLACE THE TEMPLATE URDF with `fill_template`
+        container_urdf = self.fill_template(container_template, replace)
+        env.add_object(container_urdf, zone_pose, 'fixed')
+
+        # Add objects.
+        objects = []
+        template = 'kitting/object-template.urdf'
+        for i in range(n_objects):
+            shape = obj_shapes[i]
+
+            # x, y, z dimensions for the asset size
+            size = (0.08, 0.08, 0.02)
+            pose= self.get_random_pose(env, size)
+            fname = f'{shape:02d}.obj'
+            fname = os.path.join(self.assets_root, 'kitting', fname)
+            scale = [0.003, 0.003, 0.001]  # .0005
+            replace = {'FNAME': (fname,),
+                       'SCALE': scale,
+                       'COLOR': colors[i]}
+
+            # IMPORTANT: REPLACE THE TEMPLATE URDF
+            urdf = self.fill_template(template, replace)
+            block_id = env.add_object(urdf, pose)
+            objects.append(block_id)
+
+        # Pick the first shape.
+        num_objects_to_pick = 1
+        for i in range(num_objects_to_pick):
+            # IMPORTANT: Specify (obj_pts, [(zone_pose, zone_size)]) for target `zone`. obj_pts is a dict
+            language_goal = self.lang_template.format(obj=shapes[obj_shapes[i]])
+            self.add_goal(objs=[objects[i]], matches=np.int32([[1]]), targ_poses=[zone_pose], replace=False,
+                rotations=True, metric='zone', params=[(zone_pose, zone_size)], step_max_reward=1 / num_objects_to_pick,
+                language_goal=language_goal)
+"""
+"""
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import pybullet as p
+
+
+class PlaceRedInGreen(Task):
+    """pick up the red blocks and place them into the green bowls amidst other objects."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10
+        self.lang_template = "put the red blocks in a green bowl"
+        self.task_completed_desc = "done placing blocks in bowls."
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+        n_bowls = np.random.randint(1, 4)
+        n_blocks = np.random.randint(1, n_bowls + 1)
+
+        # Add bowls.
+        # x, y, z dimensions for the asset size
+        bowl_size = (0.12, 0.12, 0)
+        bowl_urdf = 'bowl/bowl.urdf'
+        bowl_poses = []
+        for _ in range(n_bowls):
+            bowl_pose = self.get_random_pose(env, obj_size=bowl_size)
+            env.add_object(urdf=bowl_urdf, pose=bowl_pose, category='fixed')
+            bowl_poses.append(bowl_pose)
+
+        # Add blocks.
+        # x, y, z dimensions for the asset size
+        blocks = []
+        block_size = (0.04, 0.04, 0.04)
+        block_urdf = 'stacking/block.urdf'
+        for _ in range(n_blocks):
+            block_pose = self.get_random_pose(env, obj_size=block_size)
+            block_id = env.add_object(block_urdf, block_pose)
+            blocks.append(block_id)
+
+        # Goal: each red block is in a different green bowl.
+        self.add_goal(objs=blocks, matches=np.ones((len(blocks), len(bowl_poses))), targ_poses=bowl_poses, replace=False,
+                rotations=True, metric='pose', params=None, step_max_reward=1, language_goal=self.lang_template)
+
+        # Colors of distractor objects.
+        bowl_colors = [utils.COLORS[c] for c in utils.COLORS if c != 'green']
+        block_colors = [utils.COLORS[c] for c in utils.COLORS if c != 'red']
+
+        # Add distractors.
+        n_distractors = 0
+        while n_distractors < 6:
+            is_block = np.random.rand() > 0.5
+            urdf = block_urdf if is_block else bowl_urdf
+            size = block_size if is_block else bowl_size
+            colors = block_colors if is_block else bowl_colors
+            pose = self.get_random_pose(env, obj_size=size)
+            color = colors[n_distractors % len(colors)]
+
+            obj_id = env.add_object(urdf, pose, color=color)
+            n_distractors += 1
+"""
+"""
+import numpy as np
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+
+
+class SweepingPiles(Task):
+    """Push piles of small objects into a target goal zone marked on the tabletop."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 20
+        self.lang_template = "push the pile of blocks into the green square"
+        self.task_completed_desc = "done sweeping."
+        self.primitive = primitives.push
+        self.ee = Spatula
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Add goal zone.
+        zone_size = (0.12, 0.12, 0)
+        zone_pose = self.get_random_pose(env, zone_size)
+        env.add_object('zone/zone.urdf', zone_pose, 'fixed')
+
+        # Add pile of small blocks with `make_piles` function
+        obj_ids = self.make_piles(env)
+
+        # Add goal
+        self.add_goal(objs=obj_ids, matches=np.ones((50, 1)), targ_poses=[zone_pose], replace=True,
+                rotations=False, metric='zone', params=[(zone_pose, zone_size)], step_max_reward=1, language_goal=self.lang_template)
+"""
+"""
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import pybullet as p
+
+class StackBlockPyramid(Task):
+    """Build a pyramid of colored blocks in a color sequence"""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 12
+        self.lang_template = "make the {row} row with {blocks}"
+        self.task_completed_desc = "done stacking block pyramid."
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Add base.
+        base_size = (0.05, 0.15, 0.005)
+        base_urdf = 'stacking/stand.urdf'
+        base_pose = self.get_random_pose(env, base_size)
+        env.add_object(base_urdf, base_pose, category='fixed')
+
+        # Block colors.
+        colors = [
+            utils.COLORS['purple'], utils.COLORS['blue'], utils.COLORS['green'],
+            utils.COLORS['yellow'], utils.COLORS['orange'], utils.COLORS['red']
+        ]
+
+        # Add blocks.
+        block_size = (0.04, 0.04, 0.04)
+        block_urdf = 'stacking/block.urdf'
+
+        objs = []
+        for i in range(6):
+            block_pose = self.get_random_pose(env, block_size)
+            block_id = env.add_object(block_urdf, block_pose, color=colors[i])
+            objs.append(block_id)
+
+        # IMPORTANT Associate placement locations for goals.
+        place_pos = [(0, -0.05, 0.03), (0, 0, 0.03),
+                     (0, 0.05, 0.03), (0, -0.025, 0.08),
+                     (0, 0.025, 0.08), (0, 0, 0.13)]
+        targs = [(utils.apply(base_pose, i), base_pose[1]) for i in place_pos]
+
+        # Goal: blocks are stacked in a pyramid (bottom row: green, blue, purple).
+        language_goal = self.lang_template.format(blocks="the green, blue and purple blocks", row="bottom")
+        self.add_goal(objs=objs[:3], matches=np.ones((3, 3)), targ_poses=targs[:3], replace=False,
+                rotations=True, metric='pose', params=None, step_max_reward=1 / 2, symmetries=[np.pi/2]*3, language_goal=language_goal)
+
+        # Goal: blocks are stacked in a pyramid (middle row: yellow, orange).
+        language_goal = self.lang_template.format(blocks="the yellow and orange blocks", row="middle")      
+        self.add_goal(objs=objs[3:5], matches=np.ones((2, 2)), targ_poses=targs[3:5], replace=False,
+                rotations=True, metric='pose', params=None, step_max_reward=1 / 3, symmetries=[np.pi/2]*2, language_goal=language_goal)
+
+        # Goal: blocks are stacked in a pyramid (top row: red).
+        language_goal = self.lang_template.format(blocks="the red block", row="top")
+        self.add_goal(objs=objs[5:], matches=np.ones((1, 1)), targ_poses=targs[5:], replace=False,
+                rotations=True, metric='pose', params=None, step_max_reward=1 / 6, symmetries=[np.pi/2]*1, language_goal=language_goal)
+"""
+
+
+
+Do not use libraries, functions, and assets that you don't know. For each object, try to describe its color, size, category in the task first before you write the code. You do not need extra helper functions. Comment the code liberally to explain what each piece does and why it's written that way. If you have only one goal, `step_max_reward` in `add_goal` should be 1. Use functions `make_piles` and `make_ropes` for creating piles and cables. To use spatula together with the push primitives, import the libraries 
+"""
+from cliport.tasks import primitives;
+from cliport.tasks.grippers import Spatula
+"""
+and then use `self.primitive = primitives.push` and `self.ee = Spatula`.
+Note that the number of language goals usually match the number of motion goals, since they should correspond to each other.
+
+Before generate code, you have a few considerations to focus on:
+1. You are strictly prohibited from using function interfaces that do not appear in the above sample code. For example, the module cliport.tasks.primitives does not have pick_plack or place functions, only the push function interface is available.
+2. Module 'cliport.tasks.primitives' has no attribute 'pick_place', you mustn't use it.
+3. There are two types of your Gripper, one is Spatula and the other is Suction.You need to choose a different end-effector depending on your task requirements. If you need to move an object on the Z axis, then you need to use the Suction type. If you just need to translate an object in a 2D plane, then you can use either Spatula or Suction type.
+4. You must determine the type of end-effector you need to use based on the type of task you have. You can choose by adding self.ee=Spatula or self.ee=Suction to the __init__(self) function, the default self.ee is Suction.
+5. If you want to use Suction, you must import module using "from cliport.tasks.grippers import Suction". Else if you want to use Spatula, you must import module using "from cliport.tasks.grippers import Spatula".
+6. The x-coordinate of the object is in the range [0.25, 0.75], the y-coordinate is in the range [-0.5,0.5] and the z-coordinate is in the range [0, 0.3].
+7. The initial position of all objects needs to get its random initial position through the get_random_pose function.
+8. The self.max_steps parameter value should be greater than the number of calls to self.add_goal, and preferably equal to twice the number of calls to self.add_goal. For example, if you call self.add_goal twice in one task, then self.max_steps is better set to 4.
+
+If you want to generate the color of the object, you have to obey following rules:
+1. You must use the utils.COLORS['COLOR_NAME'] function interface to generate an RGB three-channel value for a color.
+2. The available colors for 'COLOR_NAME' are blue, red, green, orange, yellow, purple, pink, cyan, brown, white, gray, indigo, violet, black, silver and gold.
+3. If you want to generate a red object, then its RGB three-channel color can be obtained through utils.COLORS['red'].
+All object’s colors generation must follow color generation method above.
+
+If you want to generate the target pose of the object(third parameter of function 'self.add_goal' targ_poses), you have to obey following rules:
+1. The target pose of an object is represented by the three-dimensional spatial coordinates of the object and its orientation quaternion.
+2. The target pose of an object must be represented by [(x,y,z),(q1,q2,q3,q4)]. Where (x,y,z) are the three-dimensional coordinates of the object and (q1,q2,q3,q4) denote the quaternions of the object's target pose.
+3. The target pose of an object must be generated by you or use the initial pose of an object as the target pose of the current object.
+4. Here's an example, to generate the target pose of a Y object, we have the initial pose information of an X object. So target pose of Y can be represented by pose_y=[(x,y,z),(q1,q2,q3,q4)] or pose_y=initial_pose_x.(Where x,y,z,q1,q2,q3,q4 are specific values.)
+5. targ_poses (List of Poses [(translation [x,y,z], rotation [q0,q1,q2,q3])] ): a list of target poses of tuple (translation, rotation).
+6. The targ_poses you generate must contain translation[x,y,z], but rotation[q0,q1,q2,q3] you may or may not generate.
+All object's target pose generation must follow method above.
+
+Now write the code for the task "TASK_NAME_TEMPLATE" in python code block starting with ```python.  Reminder: TASK_STRING_TEMPLATE 

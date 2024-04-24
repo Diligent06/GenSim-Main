@@ -1,0 +1,12 @@
+defaults:
+  - config
+hydra:
+  run:
+    dir: ${root_dir}
+
+trial_name: GPT3.5-50-error-api-1
+trial_result_folder: ${root_dir}/../output/output_stats/${trial_name}
+output_folder: ${root_dir}/data/${trial_name}
+use_api: True
+use_error: True
+
