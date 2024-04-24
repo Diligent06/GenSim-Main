@@ -1,3 +1,85 @@
+# Changes
+
+代码中的prompt修改集中于task generation mode中，因此，生成任务的指令使用如下所示的命令。
+
+```
+python gensim/run_simulation.py disp=False prompt_folder=vanilla_task_generation_prompt max_env_run_cnt=0 trials=50 gpt_model="gpt-4-1106-preview"
+```
+
+## utils文件夹结构
+
+```
+utils
+└───config
+│   │   config.yaml
+│   │   data.yaml
+└───data
+│   │   GPT3.5-50-1
+│   │   GPT3.5-50-api-1
+│   │   ...
+│   eval_result.py
+│   simulation_folder.py
+│   simulation_illustrate.py
+│   simulation.py
+│   TSNE.py
+└───utils.py
+```
+
+| 文件名                   | 功能                                                         |
+| ------------------------ | ------------------------------------------------------------ |
+| eval_result.py           | 提取task name、language goals，计算cos-similarity并输出文件到data文件夹中 |
+| simulation_folder.py     | 运行一个文件夹中的所有generated code，并输出可完成的任务列表文件 |
+| simulation_illustrate.py | 将指定文件中全部可完成的任务完成并演示，用于录制视频         |
+| simulation.py            | 运行某一个已经生成的task code                                |
+| TSNE.py                  | 将task name encode成np.array的形式                           |
+| utils.py                 | 一些通用函数的实现                                           |
+
+## 运行一些脚本的命令
+
+### 一些前置的环境变量设置
+
+```
+# windows
+set UTILS_ROOT=C:\Users\Su\GenSim-main\utils
+set GENSIM_ROOT=C:\Users\Su\GenSim-main
+set OPENAI_KEY=your_gpt_api
+# linux
+export UTILS_ROOT=$(pwd) 
+export GENSIM_ROOT=$(pwd) 
+export OPENAI_KEY=your_gpt_api
+```
+
+### eval_result.py
+
+```
+python ./utils/eval_result.py trial_name=GPT3.5-50-api-1
+```
+
+### simulation.py
+
+通过修改simulation.py文件中第90行的code name来实现运行不同的任务
+
+```
+python ./utils/simulation.py disp=True max_env_run_cnt=0
+```
+
+### simulation_folder.py
+
+通过修改simulation_folder.py文件中第93行的episode_name来实现对不同的生成轮次中的所有generated code的运行
+
+```
+python ./utils/simulation_folder.py disp=True max_env_run_cnt=0
+```
+
+### simulation_illustrate.py
+
+通过修改simulation_illustrate.py文件中第105行中的text_file_name来实现对不同轮次生成的可完成任务的展示
+
+```
+python ./utils/simulation_illustrate.py disp=True max_env_run_cnt=0
+```
+
+
 
 # GenSim: Generating Robotic Simulation Tasks via Large Language Models
 
