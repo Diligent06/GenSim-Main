@@ -1,0 +1,78 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class CylinderTowerPrecision(Task):
+    """
+    Carefully stack three differently colored cylinders (red, green, blue) on top of each other
+    to form a vertical tower, aligning them precisely in the center of a marked zone.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 6  # We have 3 cylinders to stack, so 6 steps should be sufficient (2x the number of goals)
+        self.lang_template = "stack the {color} cylinder"
+        self.task_completed_desc = "done stacking the cylinders."
+        self.ee = Suction  # We need to move objects on the Z axis, so Suction is appropriate
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define cylinder colors and sizes
+        cylinder_colors = [utils.COLORS['red'], utils.COLORS['green'], utils.COLORS['blue']]
+        cylinder_size = (0.05, 0.05, 0.15)  # Diameter, Diameter, Height
+
+        # Add goal zone
+        zone_size = (0.15, 0.15, 0)  # Length, Width, Height (flat zone)
+        zone_pose = self.get_random_pose(env, zone_size)
+        env.add_object('zone/zone.urdf', zone_pose, 'fixed')
+
+        # Add cylinders
+        cylinder_urdf = 'cylinder/cylinder-template.urdf'
+        cylinders = []
+        for color in cylinder_colors:
+            # Get a random pose for the cylinder
+            pose = self.get_random_pose(env, cylinder_size)
+            # Replace the template URDF with the specific color and size
+            replace = {'COLOR': color, 'SIZE': cylinder_size}
+            urdf = self.fill_template(cylinder_urdf, replace)
+            # Add the cylinder to the environment
+            cylinder_id = env.add_object(urdf, pose)
+            cylinders.append(cylinder_id)
+
+        # Define the target poses for the cylinders
+        # The target pose for each cylinder is on top of the previous one, aligned in the center of the zone
+        base_height = zone_pose[0][2]  # Z coordinate of the zone
+        targ_poses = [
+            (zone_pose[0], zone_pose[1]),  # Base cylinder directly on the zone
+            ([zone_pose[0][0], zone_pose[0][1], base_height + cylinder_size[2]], zone_pose[1]),  # Second cylinder
+            ([zone_pose[0][0], zone_pose[0][1], base_height + 2 * cylinder_size[2]], zone_pose[1])  # Top cylinder
+        ]
+
+        # Add goals for stacking the cylinders
+        for i, cylinder_id in enumerate(cylinders):
+            language_goal = self.lang_template.format(color=cylinder_colors[i].lower())
+            self.add_goal(
+                objs=[cylinder_id],
+                matches=np.ones((1, 1)),
+                targ_poses=[targ_poses[i]],
+                replace=False,
+                rotations=True,
+                metric='pose',
+                params=None,
+                step_max_reward=1 / len(cylinders),  # Equal reward for each cylinder
+                language_goal=language_goal
+            )
+
+# Instantiate the task
+task = CylinderTowerPrecision()

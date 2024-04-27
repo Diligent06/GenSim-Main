@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 200, in simulate_task
+    total_reward = self.run_one_episode(dataset, expert, env, task, episode, seed)
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 154, in run_one_episode
+    act = expert.act(obs, info)
+  File "C:\Users\Su\GenSim-main\cliport\tasks\task.py", line 117, in act
+    object_id, (symmetry, _) = objs[i]
+ValueError: too many values to unpack (expected 2)

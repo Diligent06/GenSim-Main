@@ -1,0 +1,64 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class ColorCoordinatedBowlArrangement(Task):
+    """
+    Arrange a set of differently colored balls by placing each into a matching colored bowl,
+    forming a specific pattern without the balls rolling away.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 4  # We expect to add two goals, so max_steps is twice that
+        self.ee = Suction  # Using Suction since we need to lift balls on the Z axis
+        self.lang_template = "put the {color} ball in the {color} bowl"
+        self.task_completed_desc = "done arranging the balls in the bowls."
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the colors available for the balls and bowls
+        colors = ['red', 'green', 'blue', 'yellow', 'purple']
+
+        # Add bowls and balls to the environment
+        bowls = []
+        balls = []
+        for color in colors:
+            # Add bowl
+            bowl_size = (0.15, 0.15, 0.07)  # x, y, z dimensions for the bowl size
+            bowl_pose = self.get_random_pose(env, bowl_size)
+            bowl_urdf = 'bowl/bowl.urdf'
+            bowl_color = utils.COLORS[color]  # Get the RGB values for the bowl color
+            bowl_id = env.add_object(bowl_urdf, bowl_pose, 'fixed', color=bowl_color)
+            bowls.append((bowl_id, bowl_pose))
+
+            # Add ball
+            ball_size = (0.04, 0.04, 0.04)  # x, y, z dimensions for the ball size
+            ball_pose = self.get_random_pose(env, ball_size)
+            ball_template = 'ball/ball-template.urdf'
+            ball_color = utils.COLORS[color]  # Get the RGB values for the ball color
+            replace = {'COLOR': ball_color}
+            ball_urdf = self.fill_template(ball_template, replace)
+            ball_id = env.add_object(ball_urdf, ball_pose)
+            balls.append((ball_id, ball_pose))
+
+        # Define the goals for placing each ball into the matching colored bowl
+        for ball, bowl in zip(balls, bowls):
+            ball_id, _ = ball
+            _, bowl_pose = bowl
+            color_name = color.capitalize()
+            language_goal = self.lang_template.format(color=color_name)
+            # The target pose for the ball is the pose of the bowl
+            self.add_goal(objs=[ball_id], matches=np.int32([[1]]), targ_poses=[bowl_pose],
+                          replace=False, rotations=False, metric='pose', params=None,
+                          step_max_reward=1, language_goal=language_goal)

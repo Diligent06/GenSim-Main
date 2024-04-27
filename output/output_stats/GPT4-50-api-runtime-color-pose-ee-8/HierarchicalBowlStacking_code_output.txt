@@ -1,0 +1,74 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class HierarchicalBowlStacking(Task):
+    """Place a smaller red bowl inside a larger green bowl, and then stack a blue cylinder on top of the red bowl."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 4  # We have two main goals, so max_steps is set to twice that number
+        self.lang_template = "place the {object_color} {object_type} in the {target_container_color} {target_container_type}"
+        self.task_completed_desc = "done stacking the bowls and cylinder."
+        self.ee = Suction  # Using Suction since we need to move objects on the Z axis
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the colors for the objects
+        red_color = utils.COLORS['red']
+        green_color = utils.COLORS['green']
+        blue_color = utils.COLORS['blue']
+
+        # Define the sizes for the bowls and cylinder
+        # The red bowl is smaller than the green bowl
+        red_bowl_size = (0.10, 0.10, 0.05)
+        green_bowl_size = (0.15, 0.15, 0.05)
+        blue_cylinder_size = (0.05, 0.05, 0.10)
+
+        # Add the green bowl (larger bowl)
+        green_bowl_pose = self.get_random_pose(env, green_bowl_size)
+        green_bowl_id = env.add_object('bowl/bowl.urdf', green_bowl_pose, color=green_color)
+
+        # Add the red bowl (smaller bowl)
+        red_bowl_pose = self.get_random_pose(env, red_bowl_size)
+        red_bowl_id = env.add_object('bowl/bowl.urdf', red_bowl_pose, color=red_color)
+
+        # Add the blue cylinder
+        blue_cylinder_pose = self.get_random_pose(env, blue_cylinder_size)
+        blue_cylinder_template = 'cylinder/cylinder-template.urdf'
+        replace = {'COLOR': blue_color}
+        blue_cylinder_urdf = self.fill_template(blue_cylinder_template, replace)
+        blue_cylinder_id = env.add_object(blue_cylinder_urdf, blue_cylinder_pose)
+
+        # Add the zone where the objects should be stacked
+        zone_size = (0.20, 0.20, 0)
+        zone_pose = self.get_random_pose(env, zone_size)
+        env.add_object('zone/zone.urdf', zone_pose, 'fixed')
+
+        # Goal 1: Place the red bowl inside the green bowl
+        language_goal = self.lang_template.format(object_color="red", object_type="bowl",
+                                                  target_container_color="green", target_container_type="bowl")
+        self.add_goal(objs=[red_bowl_id], matches=np.ones((1, 1)), targ_poses=[green_bowl_pose], replace=False,
+                      rotations=True, metric='pose', params=None, step_max_reward=1,
+                      language_goal=language_goal)
+
+        # Goal 2: Stack the blue cylinder on top of the red bowl
+        # The target pose for the blue cylinder is on top of the red bowl, with an offset on the z-axis
+        blue_cylinder_target_pose = (red_bowl_pose[0], red_bowl_pose[1])
+        blue_cylinder_target_pose[0][2] += red_bowl_size[2] + blue_cylinder_size[2] / 2  # Z offset
+
+        language_goal = self.lang_template.format(object_color="blue", object_type="cylinder",
+                                                  target_container_color="red", target_container_type="bowl")
+        self.add_goal(objs=[blue_cylinder_id], matches=np.ones((1, 1)), targ_poses=[blue_cylinder_target_pose], replace=False,
+                      rotations=True, metric='pose', params=None, step_max_reward=1,
+                      language_goal=language_goal)

@@ -1,0 +1,78 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class CylinderTowerConstruction(Task):
+    """Build a vertical tower by placing five differently colored cylinders on top of each other in a specific color sequence on a marked zone on the tabletop."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # We expect to place 5 cylinders, so max_steps is set to twice that number
+        self.ee = Suction  # We need to move objects on the Z axis, so we use the Suction end-effector
+        # Define the language template for the task
+        self.lang_template = "place the {color} cylinder on the {target} cylinder"
+        self.task_completed_desc = "done constructing the cylinder tower."
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the color sequence for the tower construction
+        color_sequence = ['red', 'green', 'blue', 'yellow', 'purple']
+        # Define the size of the cylinders
+        cylinder_size = (0.05, 0.05, 0.1)  # (radius, radius, height)
+
+        # Add the target zone where the tower will be constructed
+        zone_size = (0.15, 0.15, 0)  # (x_size, y_size, z_size)
+        zone_pose = self.get_random_pose(env, zone_size)
+        env.add_object('zone/zone.urdf', zone_pose, 'fixed')
+
+        # Initialize a list to store the cylinder IDs
+        cylinder_ids = []
+
+        # Add cylinders to the environment
+        for i, color_name in enumerate(color_sequence):
+            # Get the color RGB values using the provided utility function
+            color = utils.COLORS[color_name]
+            # Generate a random pose for the cylinder
+            pose = self.get_random_pose(env, cylinder_size)
+            # Fill in the cylinder URDF template with the specific color and size
+            cylinder_urdf = self.fill_template('cylinder/cylinder-template.urdf', {'COLOR': color})
+            # Add the cylinder object to the environment
+            cylinder_id = env.add_object(cylinder_urdf, pose)
+            # Store the cylinder ID
+            cylinder_ids.append(cylinder_id)
+
+            # Define the target pose for the cylinder, which is on top of the previous cylinder or the zone
+            if i == 0:
+                # The first cylinder is placed on the zone
+                target_pose = zone_pose
+                target_desc = "zone"
+            else:
+                # Subsequent cylinders are placed on top of the previous one
+                # We only need to adjust the z-coordinate for the height of the cylinder
+                target_pose = (pose[0], (pose[1][0], pose[1][1], pose[1][2] + i * cylinder_size[2]))
+                target_desc = color_sequence[i-1]
+
+            # Add a goal for each cylinder
+            language_goal = self.lang_template.format(color=color_name, target=target_desc)
+            self.add_goal(objs=[cylinder_id], 
+                          matches=np.ones((1, 1)), 
+                          targ_poses=[target_pose], 
+                          replace=False, 
+                          rotations=True, 
+                          metric='pose', 
+                          params=None, 
+                          step_max_reward=1 / len(color_sequence), 
+                          language_goal=language_goal)
+
+        # Set the progress and rewards
+        self.goals[-1].set(max_reward=1, progress_thresh=1, reward_thresh=1)

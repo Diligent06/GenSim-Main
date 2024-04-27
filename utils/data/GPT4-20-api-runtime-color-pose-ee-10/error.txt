@@ -1,0 +1,8 @@
+ValueError: operands could not be broadcast together with shapes (4,) (3,) 
+NameError: name 'Suction' is not defined
+TypeError: object of type 'NoneType' has no len()
+TypeError: 'tuple' object does not support item assignment
+AttributeError: 'tuple' object has no attribute 'update'
+TypeError: object of type 'NoneType' has no len()
+TypeError: object of type 'float' has no len()
+SystemError: <built-in function multiplyTransforms> returned a result with an error set

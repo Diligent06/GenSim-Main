@@ -1,0 +1,78 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class PrecisionBlockPlacement(Task):
+    """
+    Arrange a set of five blocks of varying colors onto a predefined grid on a fixture,
+    matching the color pattern without knocking over the standing blocks.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Set to twice the number of goals
+        self.ee = Suction  # Use Suction end-effector to move blocks on the Z axis
+        self.lang_template = "place the {color} block on the {position} position on the grid"
+        self.task_completed_desc = "done placing all blocks on the grid."
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of blocks and their colors
+        n_blocks = 5
+        block_colors = ['red', 'green', 'blue', 'yellow', 'purple']
+
+        # Add the fixture to the environment
+        fixture_size = (0.3, 0.3, 0.01)  # Fixture size (x, y, z)
+        fixture_pose = self.get_random_pose(env, fixture_size)
+        fixture_urdf = 'insertion/fixture.urdf'
+        env.add_object(fixture_urdf, fixture_pose, 'fixed')
+
+        # Define the grid positions on the fixture
+        grid_positions = [
+            (0.1, 0.1, 0.02), (0.2, 0.1, 0.02), (0.3, 0.1, 0.02),
+            (0.1, 0.2, 0.02), (0.2, 0.2, 0.02), (0.3, 0.2, 0.02),
+            (0.1, 0.3, 0.02), (0.2, 0.3, 0.02), (0.3, 0.3, 0.02)
+        ]
+
+        # Add blocks to the environment
+        block_size = (0.04, 0.04, 0.04)  # Block size (x, y, z)
+        block_urdf = 'stacking/block.urdf'
+        blocks = []
+        for i in range(n_blocks):
+            block_pose = self.get_random_pose(env, block_size)
+            color = utils.COLORS[block_colors[i]]
+            block_id = env.add_object(block_urdf, block_pose, color=color)
+            blocks.append(block_id)
+
+        # Define the target positions for each block on the grid
+        target_positions = np.random.choice(len(grid_positions), n_blocks, replace=False)
+        for i, block_id in enumerate(blocks):
+            # Calculate the target pose from the grid position
+            grid_pos = grid_positions[target_positions[i]]
+            target_pose = (utils.apply(fixture_pose, grid_pos), fixture_pose[1])
+
+            # Define the language goal for placing the block
+            language_goal = self.lang_template.format(color=block_colors[i], position=target_positions[i])
+
+            # Add the goal for the block
+            self.add_goal(objs=[block_id], matches=np.ones((1, 1)), targ_poses=[target_pose], replace=False,
+                          rotations=True, metric='pose', params=None, step_max_reward=1 / n_blocks,
+                          language_goal=language_goal)
+
+        # Set the reward function
+        self.reward_function = self.reward_function_mp
+
+    def reward_function_mp(self, obs, action, info):
+        # Custom reward function if needed
+        pass

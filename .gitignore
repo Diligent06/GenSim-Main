@@ -144,9 +144,8 @@ dmypy.json
 .pyre/
 
 
-
-output
-data
+output/output_stats/previous_output
+utils/data/previous_data
 .hydra
 cliport/environments/assets_backup
 0_VRDemoSettings.txt

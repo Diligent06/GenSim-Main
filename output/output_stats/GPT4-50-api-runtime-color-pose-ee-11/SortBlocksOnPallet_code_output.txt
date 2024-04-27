@@ -1,0 +1,78 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class SortBlocksOnPallet(Task):
+    """Sort blocks of four distinct colors into four separate corners on a pallet."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 8  # We expect to call self.add_goal 4 times, so max_steps is set to twice that number
+        self.lang_template = "put all {color} blocks in the {corner} corner"
+        self.task_completed_desc = "done sorting blocks on pallet."
+        self.ee = Suction  # We need to move objects on the Z axis, so we use the Suction end-effector
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the colors for the blocks
+        block_colors = ['red', 'green', 'blue', 'yellow']
+        color_names = ['red', 'green', 'blue', 'yellow']
+
+        # Add pallet
+        pallet_size = (0.6, 0.6, 0.02)  # x, y, z dimensions for the pallet size
+        pallet_pose = self.get_random_pose(env, pallet_size)
+        env.add_object('pallet/pallet.urdf', pallet_pose, 'fixed')
+
+        # Add blocks and corners
+        block_size = (0.05, 0.05, 0.05)  # x, y, z dimensions for the block size
+        corner_template = 'corner/corner-template.urdf'
+        blocks = []
+        corners = []
+
+        # Create 4 blocks for each color and add them to the environment
+        for color in block_colors:
+            for _ in range(4):  # 4 blocks per color
+                block_pose = self.get_random_pose(env, block_size)
+                block_color = utils.COLORS[color]
+                block_id = env.add_object('stacking/block.urdf', block_pose, color=block_color)
+                blocks.append((block_id, color))
+
+        # Create 4 corners and add them to the environment
+        for i, corner_name in enumerate(['top left', 'top right', 'bottom left', 'bottom right']):
+            corner_size = (0.15, 0.15, 0.02)  # x, y, z dimensions for the corner size
+            corner_pose = self.get_random_pose(env, corner_size)
+            replace = {'DIM': corner_size, 'HALF': (corner_size[0] / 2, corner_size[1] / 2, corner_size[2] / 2)}
+            corner_urdf = self.fill_template(corner_template, replace)
+            env.add_object(corner_urdf, corner_pose, 'fixed')
+            corners.append((corner_pose, corner_name))
+
+        # Define the target poses for each block in its respective corner
+        for color, corner in zip(color_names, corners):
+            corner_pose, corner_name = corner
+            # Filter blocks by color and assign target poses
+            color_blocks = [block_id for block_id, block_color in blocks if block_color == color]
+            target_poses = [
+                (corner_pose[0], corner_pose[1]),  # Use the corner pose as the target pose
+                (corner_pose[0], corner_pose[1]),  # Same for all blocks of the same color
+                (corner_pose[0], corner_pose[1]),
+                (corner_pose[0], corner_pose[1])
+            ]
+            # Add goal for each color
+            language_goal = self.lang_template.format(color=color, corner=corner_name)
+            self.add_goal(objs=color_blocks, matches=np.ones((4, 1)), targ_poses=target_poses, replace=True,
+                          rotations=False, metric='pose', params=None, step_max_reward=1,
+                          language_goal=language_goal)
+
+        # Note: We set replace=True because each block can match with any of the target poses within its corner
+        # We do not need to specify rotations since the blocks can be placed without a specific orientation

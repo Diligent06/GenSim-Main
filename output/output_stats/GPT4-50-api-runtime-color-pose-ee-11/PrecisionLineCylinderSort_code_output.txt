@@ -1,0 +1,78 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class PrecisionLineCylinderSort(Task):
+    """
+    Sort a set of three differently sized cylinders by placing them into their matching size-specific zones,
+    each demarcated with a unique pattern of parallel lines on the tabletop.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 6  # We have 3 cylinders to sort, so 6 steps should be sufficient (2x the number of goals)
+        self.lang_template = "place the {size} cylinder in the zone with {pattern} lines"
+        self.task_completed_desc = "done sorting cylinders."
+        self.ee = Suction  # Use Suction end-effector to pick and place cylinders
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define cylinder sizes and corresponding colors
+        sizes = ['small', 'medium', 'large']
+        colors = ['red', 'green', 'blue']
+        color_map = dict(zip(sizes, colors))
+
+        # Define the size of each cylinder
+        cylinder_sizes = {
+            'small': (0.04, 0.04, 0.1),
+            'medium': (0.06, 0.06, 0.1),
+            'large': (0.08, 0.08, 0.1)
+        }
+
+        # Add cylinders
+        cylinders = []
+        for size in sizes:
+            # Generate a random pose for the cylinder
+            pose = self.get_random_pose(env, cylinder_sizes[size])
+            # Set the color of the cylinder
+            color = utils.COLORS[color_map[size]]
+            # Create the cylinder URDF using the template
+            cylinder_urdf = self.fill_template('cylinder/cylinder-template.urdf', {'COLOR': color})
+            # Add the cylinder to the environment
+            cylinder_id = env.add_object(cylinder_urdf, pose)
+            cylinders.append((cylinder_id, size))
+
+        # Add zones with line patterns
+        line_template = 'line/single-green-line-template.urdf'
+        zone_poses = []
+        for i, size in enumerate(sizes):
+            # Generate a random pose for the zone
+            zone_pose = self.get_random_pose(env, (0.1, 0.1, 0))
+            # Add the zone to the environment
+            env.add_object(line_template, zone_pose, 'fixed')
+            zone_poses.append((zone_pose, size))
+
+        # Add goals for sorting cylinders into the correct zones
+        for cylinder, size in cylinders:
+            # Find the corresponding zone for the cylinder size
+            zone_pose, _ = next(z for z in zone_poses if z[1] == size)
+            # Define the language goal
+            pattern = 'single' if size == 'small' else 'double' if size == 'medium' else 'triple'
+            language_goal = self.lang_template.format(size=size, pattern=pattern)
+            # Add the goal
+            self.add_goal(objs=[cylinder], matches=np.int32([[1]]), targ_poses=[zone_pose[0]], replace=True,
+                          rotations=False, metric='pose', params=None, step_max_reward=1 / len(sizes),
+                          language_goal=language_goal)
+
+# Instantiate the task
+task = PrecisionLineCylinderSort()

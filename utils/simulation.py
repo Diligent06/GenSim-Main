@@ -53,8 +53,8 @@ def setup_env(cfg, task_name):
 def run_one_episode(cfg, dataset, expert, env, task, episode, seed):
     """ run the new task for one episode """
     record = cfg['record']['save_video']
-    np.random.seed(seed)
-    random.seed(seed)
+    # np.random.seed(seed)
+    # random.seed(seed)
     print('Oracle demo: {}/{} | Seed: {}'.format(dataset.n_episodes + 1, cfg['n'], seed))
     env.set_task(task)
     obs = env.reset()
@@ -87,7 +87,7 @@ def main(cfg):
     if p.isConnected():
         p.disconnect()
     
-    code_file_path = './output/output_stats/GPT4-50-api-runtime-color-pose-ee-5/BowlAndCylinderArrangement_code_output.txt'
+    code_file_path = './output/output_stats/GPT4-50-api-runtime-color-pose-ee-12/BowlBlockTower_code_output.txt'
     for i in range(len(code_file_path)-1, -1, -1):
         if code_file_path[i] == '/':
             task_name = code_file_path[i+1:-16]

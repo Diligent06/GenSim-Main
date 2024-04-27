@@ -1,0 +1,16 @@
+IndexError: list index out of range
+TypeError: 'NoneType' object is not iterable
+AttributeError: module 'cliport.utils.utils' has no attribute 'ordinal'
+KeyError: 'container'
+IndexError: tuple index out of range
+pybullet.error: Invalid input: expected positionA [x,y,z], orientationA [x,y,z,w], positionB, orientationB.
+pybullet.error: Invalid input: expected positionA [x,y,z], orientationA [x,y,z,w], positionB, orientationB.
+pybullet.error: Invalid input: expected positionA [x,y,z], orientationA [x,y,z,w], positionB, orientationB.
+AttributeError: module 'cliport.tasks.primitives' has no attribute 'pick_place'
+TypeError: 'NoneType' object is not callable
+AttributeError: module 'cliport.utils.utils' has no attribute 'get_symmetric_quaternion'
+TypeError: 'tuple' object does not support item assignment
+IndexError: list index out of range
+pybullet.error: Invalid input: expected positionA [x,y,z], orientationA [x,y,z,w], positionB, orientationB.
+IndexError: list index out of range
+pybullet.error: Invalid input: expected positionA [x,y,z], orientationA [x,y,z,w], positionB, orientationB.

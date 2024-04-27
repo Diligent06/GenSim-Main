@@ -90,7 +90,7 @@ def main(cfg):
     if p.isConnected():
         p.disconnect()
     files = []
-    episode_name = 'GPT4-50-api-runtime-color-pose-ee-10'
+    episode_name = 'GPT4-50-api-runtime-color-pose-ee-12'
     code_folder_path = './output/output_stats/' + episode_name + '/'
     output_file_path = './utils/data/' + episode_name + '_complete.txt'
     total_file = 0

@@ -1,0 +1,69 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class ZoneCylinderSorting(Task):
+    """Arrange differently colored cylinders on a marked zone on the tabletop by matching each cylinder's color with the corresponding colored area within the zone."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Assuming we will have up to 5 cylinders to sort, hence 10 steps (2x the number of cylinders)
+        self.lang_template = "place the {color} cylinder in the {color} zone"
+        self.task_completed_desc = "done sorting cylinders by color."
+        self.ee = Suction  # Suction end-effector is suitable for picking up cylinders
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of cylinders and their colors
+        n_cylinders = 5
+        cylinder_colors = ['red', 'blue', 'green', 'yellow', 'purple']
+        np.random.shuffle(cylinder_colors)  # Shuffle colors to avoid a fixed order
+
+        # Add the zone where cylinders will be placed
+        zone_size = (0.3, 0.3, 0)  # Define the size of the zone
+        zone_pose = self.get_random_pose(env, zone_size)  # Get a random pose for the zone within the workspace
+        env.add_object('zone/zone.urdf', zone_pose, 'fixed')  # Add the zone to the environment
+
+        # Add cylinders to the environment
+        cylinders = []
+        for i in range(n_cylinders):
+            # Define the size of the cylinder
+            size = (0.05, 0.05, 0.1)  # Diameter and height of the cylinder
+            pose = self.get_random_pose(env, size)  # Get a random pose for the cylinder within the workspace
+            color_name = cylinder_colors[i]  # Get the color name for the current cylinder
+            color_rgb = utils.COLORS[color_name]  # Get the RGB values for the color
+
+            # Fill in the cylinder URDF template with the specific color and size
+            cylinder_template = 'cylinder/cylinder-template.urdf'
+            replace = {'COLOR': color_rgb, 'SIZE': size}
+            cylinder_urdf = self.fill_template(cylinder_template, replace)
+
+            # Add the cylinder to the environment
+            cylinder_id = env.add_object(cylinder_urdf, pose)
+            cylinders.append(cylinder_id)
+
+            # Define the target pose for the cylinder within the zone
+            # The target pose will have the same orientation as the zone and a position offset to match the color area
+            target_pose = (zone_pose[0], zone_pose[1])  # Same orientation, position will be offset within the zone
+
+            # Define the language goal for placing this cylinder
+            language_goal = self.lang_template.format(color=color_name)
+
+            # Add the goal for this cylinder
+            self.add_goal(objs=[cylinder_id], matches=np.int32([[1]]), targ_poses=[target_pose], replace=False,
+                          rotations=False, metric='zone', params=[(zone_pose, zone_size)], step_max_reward=1/n_cylinders,
+                          language_goal=language_goal)
+
+        # Note: The target poses for the cylinders within the zone are not explicitly defined here.
+        # In a real implementation, you would calculate specific positions within the zone for each color.
+        # For simplicity, we are using the same zone_pose for all cylinders, which would need to be adjusted.

@@ -1,0 +1,73 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class CylinderTowerBalancing(Task):
+    """Stack five differently colored cylinders on top of each other in a specific color order on a small flat zone, without any of them falling over."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # We expect to stack 5 cylinders, so 10 steps should be sufficient
+        self.ee = Suction  # Suction end-effector is needed to lift cylinders along the Z axis
+        self.lang_template = "stack the {color} cylinder on top of the {base_color} one"
+        self.task_completed_desc = "done stacking the cylinder tower."
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the color order for the cylinder tower
+        color_order = ['red', 'green', 'blue', 'yellow', 'purple']
+        color_names = ['red', 'green', 'blue', 'yellow', 'purple']
+        colors = [utils.COLORS[name] for name in color_names]  # Generate RGB values for the colors
+
+        # Add the flat zone where the cylinders will be stacked
+        zone_size = (0.1, 0.1, 0.01)  # Small flat zone size
+        zone_pose = self.get_random_pose(env, zone_size)  # Get a random pose for the zone within the workspace
+        env.add_object('zone/zone.urdf', zone_pose, 'fixed')  # Add the zone to the environment
+
+        # Add cylinders
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinder_size = (0.04, 0.04, 0.08)  # Diameter and height for the cylinder
+        cylinder_urdf = self.fill_template(cylinder_template, {'SIZE': cylinder_size})
+        cylinder_poses = []
+        cylinders = []
+
+        # Add five cylinders with the specified colors
+        for i in range(5):
+            pose = self.get_random_pose(env, cylinder_size)  # Get a random pose for the cylinder
+            cylinder_id = env.add_object(cylinder_urdf, pose, color=colors[i])  # Add the cylinder to the environment
+            cylinders.append(cylinder_id)
+            cylinder_poses.append(pose)
+
+        # Define the goals for stacking the cylinders in the correct order
+        for i in range(5):
+            # The target pose for the current cylinder is on top of the previous one (or the zone for the first)
+            if i == 0:
+                base_pose = zone_pose
+                base_color = "zone"
+            else:
+                base_pose = cylinder_poses[i - 1]
+                base_color = color_order[i - 1]
+
+            # The target pose is the same x, y as the base, but with z offset by the cylinder height
+            target_pose = (base_pose[0], (base_pose[1][0], base_pose[1][1], base_pose[1][2] + cylinder_size[2]))
+
+            # Define the language goal for this step
+            language_goal = self.lang_template.format(color=color_order[i], base_color=base_color)
+
+            # Add the goal for the current cylinder
+            self.add_goal(objs=[cylinders[i]], matches=np.ones((1, 1)), targ_poses=[target_pose], replace=False,
+                          rotations=True, metric='pose', params=None, step_max_reward=1/5, language_goal=language_goal)
+
+        # Set the number of steps to twice the number of goals
+        self.max_steps = len(self.goals) * 2

@@ -99,13 +99,13 @@ class Task():
             objs, matches, targs, replace, rotations, _, _, _ = self.goals[0]
             # print(objs)
 
-            temp = np.uint8(obj_mask == 5)
-            temp_index = utils.find_mask_center(temp)
-            # print(temp_index)
-            temp_pos = utils.pix_to_xyz(temp_index, hmap,
-                                        self.bounds, self.pix_size)
-            print('Coordinates of the actual bowl: ')
-            print(temp_pos)
+            # temp = np.uint8(obj_mask == 5)
+            # temp_index = utils.find_mask_center(temp)
+            # # print(temp_index)
+            # temp_pos = utils.pix_to_xyz(temp_index, hmap,
+            #                             self.bounds, self.pix_size)
+            # print('Coordinates of the actual bowl: ')
+            # print(temp_pos)
 
             for j, targ in enumerate(targs):
                 # add default orientation if missing

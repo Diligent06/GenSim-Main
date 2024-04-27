@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 200, in simulate_task
+    total_reward = self.run_one_episode(dataset, expert, env, task, episode, seed)
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 154, in run_one_episode
+    act = expert.act(obs, info)
+  File "C:\Users\Su\GenSim-main\cliport\tasks\task.py", line 195, in act
+    if len(targ_pose[1]) != 4:
+TypeError: object of type 'NoneType' has no len()

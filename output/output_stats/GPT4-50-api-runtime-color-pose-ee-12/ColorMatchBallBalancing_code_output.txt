@@ -1,0 +1,84 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class ColorMatchBallBalancing(Task):
+    """Identify the color of each ball, then pick and place it onto a matching colored cylindrical stand with a small platform, ensuring each ball remains balanced on top."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 4  # We expect to add two goals, so max_steps is twice that number
+        self.lang_template = "place the {color} ball on the {color} stand"
+        self.task_completed_desc = "done balancing balls on stands."
+        self.ee = Suction  # We need to move balls on the Z axis, so we use the Suction end-effector
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of balls and stands
+        n_balls = 2
+
+        # Define the size of the balls and stands
+        ball_size = (0.04, 0.04, 0.04)  # (x, y, z) dimensions
+        stand_size = (0.05, 0.05, 0.1)  # (x, y, z) dimensions
+
+        # Define the template URDFs for the balls and stands
+        ball_template = 'ball/ball-template.urdf'
+        stand_template = 'cylinder/cylinder-template.urdf'
+
+        # Randomly select colors for the balls and matching stands
+        colors = np.random.choice(list(utils.COLORS.keys()), n_balls, replace=False)
+
+        # Add balls and stands to the environment
+        balls = []
+        stands = []
+        for color in colors:
+            # Ball color
+            ball_color = utils.COLORS[color]
+
+            # Stand color
+            stand_color = ball_color
+
+            # Get random poses for the ball and stand
+            ball_pose = self.get_random_pose(env, ball_size)
+            stand_pose = self.get_random_pose(env, stand_size)
+
+            # Fill in the ball URDF template
+            replace = {'COLOR': ball_color}
+            ball_urdf = self.fill_template(ball_template, replace)
+            ball_id = env.add_object(ball_urdf, ball_pose)
+            balls.append((ball_id, ball_pose))
+
+            # Fill in the stand URDF template
+            replace = {'COLOR': stand_color}
+            stand_urdf = self.fill_template(stand_template, replace)
+            stand_id = env.add_object(stand_urdf, stand_pose, 'fixed')
+            stands.append((stand_id, stand_pose))
+
+            # Define the language goal
+            language_goal = self.lang_template.format(color=color)
+
+            # Add the goal for placing the ball on the stand
+            self.add_goal(objs=[ball_id], 
+                          matches=np.int32([[1]]), 
+                          targ_poses=[stand_pose], 
+                          replace=False, 
+                          rotations=False, 
+                          metric='pose', 
+                          params=None, 
+                          step_max_reward=1, 
+                          language_goal=language_goal)
+
+        # Comment: The task is to place each ball on a stand of the same color. 
+        # We use the Suction end-effector to pick up the balls and place them on the stands.
+        # The 'add_goal' method is called for each ball-stand pair with a maximum reward of 1 for each goal.

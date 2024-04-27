@@ -1,0 +1,74 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class BowlCylinderSegregation(Task):
+    """
+    Sort a set of five cylinders with varying heights into two distinct bowls based on their height,
+    placing taller cylinders in the blue bowl and shorter cylinders in the red bowl.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Set to twice the number of goals
+        self.lang_template = "put the {height} cylinders in the {color} bowl"
+        self.task_completed_desc = "done segregating cylinders."
+        self.ee = Suction  # Use Suction end-effector to move cylinders on the Z axis
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of cylinders and bowls
+        n_cylinders = 5
+        n_bowls = 2
+
+        # Define the size of the bowls and cylinders
+        bowl_size = (0.15, 0.15, 0.06)  # (x, y, z) dimensions
+        cylinder_size = (0.05, 0.05, 0.1)  # (x, y, z) dimensions, height will vary
+
+        # Add two bowls to the environment: one blue and one red
+        bowl_urdf = 'bowl/bowl.urdf'
+        blue_bowl_pose = self.get_random_pose(env, bowl_size)
+        red_bowl_pose = self.get_random_pose(env, bowl_size)
+        env.add_object(bowl_urdf, blue_bowl_pose, 'fixed', color=utils.COLORS['blue'])
+        env.add_object(bowl_urdf, red_bowl_pose, 'fixed', color=utils.COLORS['red'])
+
+        # Add cylinders with varying heights to the environment
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinders = []
+        heights = np.linspace(0.1, 0.2, n_cylinders)  # Generate 5 different heights
+        for i in range(n_cylinders):
+            # Modify the cylinder size to have the desired height
+            size = (cylinder_size[0], cylinder_size[1], heights[i])
+            pose = self.get_random_pose(env, size)
+            replace = {'SIZE': size}
+            urdf = self.fill_template(cylinder_template, replace)
+            cylinder_id = env.add_object(urdf, pose)
+            cylinders.append((cylinder_id, heights[i]))
+
+        # Sort cylinders by height
+        cylinders.sort(key=lambda x: x[1])
+
+        # Define goals for placing shorter cylinders in the red bowl and taller ones in the blue bowl
+        # The median height is used to divide the cylinders into shorter and taller
+        median_height = np.median(heights)
+        for cylinder_id, height in cylinders:
+            if height <= median_height:
+                # Shorter cylinders go to the red bowl
+                self.add_goal(objs=[cylinder_id], matches=np.int32([[1]]), targ_poses=[red_bowl_pose],
+                              replace=False, rotations=True, metric='zone', params=None, step_max_reward=1,
+                              language_goal=self.lang_template.format(height='shorter', color='red'))
+            else:
+                # Taller cylinders go to the blue bowl
+                self.add_goal(objs=[cylinder_id], matches=np.int32([[1]]), targ_poses=[blue_bowl_pose],
+                              replace=False, rotations=True, metric='zone', params=None, step_max_reward=1,
+                              language_goal=self.lang_template.format(height='taller', color='blue'))

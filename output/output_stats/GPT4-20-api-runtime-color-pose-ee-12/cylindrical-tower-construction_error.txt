@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 184, in simulate_task
+    task, dataset, env, expert = self.setup_env()
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 124, in setup_env
+    expert = task.oracle(env)
+  File "<string>", line 76, in oracle
+AttributeError: 'CylindricalTowerConstruction' object has no attribute 'oracle_cylinder_poses'

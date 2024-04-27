@@ -1,0 +1,81 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class BlockCylinderTower(Task):
+    """Sequentially stack alternating rectangular blocks and cylindrical objects by color to form a tower."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # We expect to stack 5 objects, so 10 steps should be sufficient
+        self.lang_template = "stack the {object} on top of the {base}"
+        self.task_completed_desc = "done stacking the tower."
+        self.ee = Suction  # Use suction end-effector for vertical stacking
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the colors for the blocks and cylinders
+        block_colors = [utils.COLORS['red'], utils.COLORS['green'], utils.COLORS['blue']]
+        cylinder_colors = [utils.COLORS['yellow'], utils.COLORS['orange'], utils.COLORS['purple']]
+
+        # Define the sizes for the blocks and cylinders
+        block_size = (0.04, 0.04, 0.04)  # x, y, z dimensions for the block
+        cylinder_size = (0.04, 0.04, 0.08)  # x, y, z dimensions for the cylinder
+
+        # Define URDFs for the objects
+        block_urdf = 'stacking/block.urdf'
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+
+        # Initialize list to keep track of object IDs and poses
+        object_ids = []
+        object_poses = []
+
+        # Add alternating blocks and cylinders to the environment
+        for i in range(5):
+            # Alternate between block and cylinder
+            if i % 2 == 0:  # Even index, add block
+                color = block_colors[i // 2]
+                obj_urdf = block_urdf
+                obj_size = block_size
+            else:  # Odd index, add cylinder
+                color = cylinder_colors[i // 2]
+                replace = {'COLOR': color}
+                obj_urdf = self.fill_template(cylinder_template, replace)
+                obj_size = cylinder_size
+
+            # Get a random pose for the object
+            obj_pose = self.get_random_pose(env, obj_size)
+
+            # Add the object to the environment
+            obj_id = env.add_object(obj_urdf, obj_pose, color=color)
+            object_ids.append(obj_id)
+            object_poses.append(obj_pose)
+
+        # Define the language goals for stacking each object on top of the previous one
+        for i in range(1, 5):
+            base_obj = 'block' if i % 2 == 0 else 'cylinder'
+            object_type = 'cylinder' if i % 2 == 0 else 'block'
+            color_name = 'yellow' if object_type == 'cylinder' else block_colors[(i-1) // 2]
+            language_goal = self.lang_template.format(object=f"{color_name} {object_type}", base=base_obj)
+
+            # Define the target pose for the current object, which is on top of the previous object
+            base_pose = object_poses[i - 1]
+            target_pose = (base_pose[0], base_pose[1])  # Same position, same orientation
+            target_pose[0][2] += obj_size[2] if base_obj == 'block' else cylinder_size[2]  # Increase z by object height
+
+            # Add the goal for the current object
+            self.add_goal(objs=[object_ids[i]], matches=np.ones((1, 1)), targ_poses=[target_pose], replace=False,
+                          rotations=True, metric='pose', params=None, step_max_reward=1 / 5,
+                          language_goal=language_goal)
+
+        # The task is to stack the objects in alternating order by color to form a tower

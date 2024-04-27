@@ -1,0 +1,67 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class BowlBlockTower(Task):
+    """Construct a color-coordinated tower inside a bowl by stacking differently colored blocks in ascending size order, with the smallest block on top."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # We expect to stack up to 5 blocks, so 10 steps should be sufficient
+        self.lang_template = "stack the {color} block"
+        self.task_completed_desc = "done constructing the block tower."
+        self.ee = Suction  # We need to move blocks on the Z axis, so we use the Suction gripper
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the bowl properties
+        bowl_size = (0.18, 0.18, 0.06)  # Size of the bowl (x, y, z)
+        bowl_color = utils.COLORS['green']  # Color of the bowl
+        bowl_urdf = 'bowl/bowl.urdf'  # URDF file for the bowl
+
+        # Add the bowl to the environment
+        bowl_pose = self.get_random_pose(env, bowl_size)  # Get a random pose for the bowl
+        env.add_object(bowl_urdf, bowl_pose, 'fixed', color=bowl_color)  # Add the bowl as a fixed object
+
+        # Define properties for the blocks
+        block_urdf = 'stacking/block.urdf'  # URDF file for the blocks
+        block_colors = ['red', 'orange', 'yellow', 'green', 'blue']  # Colors for the blocks
+        block_sizes = [(0.04, 0.04, 0.02), (0.035, 0.035, 0.018), (0.03, 0.03, 0.016),
+                       (0.025, 0.025, 0.014), (0.02, 0.02, 0.012)]  # Sizes for the blocks (x, y, z)
+
+        # Add blocks to the environment
+        blocks = []
+        for i in range(len(block_colors)):
+            block_color = utils.COLORS[block_colors[i]]  # Get the RGB color for the block
+            block_size = block_sizes[i]  # Get the size for the block
+            block_pose = self.get_random_pose(env, block_size)  # Get a random pose for the block
+            block_id = env.add_object(block_urdf, block_pose, 'rigid', color=block_color)  # Add the block as a rigid object
+            blocks.append(block_id)
+
+        # Define the target poses for the blocks inside the bowl
+        # The target poses are stacked on top of each other, with the smallest block on top
+        targ_poses = []
+        z_offset = bowl_size[2] / 2  # Start stacking from the base of the bowl
+        for block_size in reversed(block_sizes):  # Start with the smallest block
+            z_offset += block_size[2] / 2  # Increment z_offset by half the block's height
+            targ_pose = (bowl_pose[0], (0, 0, z_offset, 1))  # Target pose is at the center of the bowl with updated z_offset
+            targ_poses.append(targ_pose)
+            z_offset += block_size[2] / 2  # Increment z_offset for the next block
+
+        # Add goals for each block
+        for i, block_id in enumerate(reversed(blocks)):  # Start with the smallest block
+            color = block_colors[len(blocks) - 1 - i]  # Get the color for the language template
+            language_goal = self.lang_template.format(color=color)  # Create the language goal
+            self.add_goal(objs=[block_id], matches=np.ones((1, 1)), targ_poses=[targ_poses[i]],
+                          replace=False, rotations=True, metric='pose', params=None,
+                          step_max_reward=1 / len(blocks), language_goal=language_goal)

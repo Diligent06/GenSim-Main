@@ -1,0 +1,43 @@
+place the {shape} in ascending order on the marked zone
+stack the {color} bowl on the {location} of the stand
+balance the {color} ball on the beam
+place the {color} block on the {target}
+stack the {color} ball on top of the {base_color} ball in the bowl
+put the {color} ball in the bowl
+construct a bridge using the {object}
+put a {color} cylinder in the bowl without placing it next to another {color} cylinder
+put the {height} cylinders in the {color} bowl
+put the {color} cylinder in the {color} bowl
+transfer the {color} ball to the {color} bowl
+put the {color} {shape} in the green container
+put the {color} cylinder in the {color} zone
+place the {color} cylinder in the {color} zone
+put the {color} ball in the matching {color} bowl
+stack the {color} cylinder on the stand
+build a column of {color} cylinders
+create a pathway from the {start_zone} to the {target_bowl} using {block_color} blocks
+put the {color} cylinder in the {color} circle
+sort the {color} cylinder by height in the designated zone
+place the {color} cylinder on the {height} stand
+place the {color} cylinder on the {color} zone, then stack them in ascending order of size
+put the {color} cylinder in the {color} bowl
+stack the {color} cylinder on top of the {base_color} block
+place the {color} cylinder in the {color} zone
+place the {color} ball in the bowl in gradient order
+place the {color} ball on the rim of the bowl
+place the {color} block in the bowl
+build a tower with the {colors} cylinders
+stack {num_blocks} red blocks and place a green bowl on top
+place the {color} block in the {color} zone
+place the {color} ball in the {color} bowl
+place the {color} block in the {color} zone
+place the blue box in the center of the white zone without touching the edges
+align the {color} cylinder in the marked zone
+place the {color} cylinder {position} in the pyramid
+build a {color} level of the pyramid on the pallet
+stack the {color} block
+place the {color} cylinder on the {side} side of the green line
+move the {color} block to the {zone} zone
+build a tower with {blocks} blocks on the {color} zone
+place the {color} block in the {color} zone
+put the {color} ball in the {color} zone

@@ -1,0 +1,76 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class NestedBoxArrangement(Task):
+    """
+    Arrange a set of color-specific small boxes inside bigger boxes with matching colors,
+    ensuring that each small box is fully contained within its corresponding larger box without any overlap.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 4  # We expect to call self.add_goal twice, so we set max_steps to twice that number.
+        self.lang_template = "put the {color} small box inside the {color} big box"
+        self.task_completed_desc = "done arranging nested boxes."
+        self.ee = Suction  # We need to move objects on the Z axis, so we use the Suction end-effector.
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of boxes and their sizes.
+        n_boxes = 2  # We will have two pairs of nested boxes.
+        small_box_size = (0.05, 0.05, 0.05)  # Size of the small boxes.
+        big_box_size = (0.15, 0.15, 0.15)  # Size of the big boxes.
+
+        # Define the colors for the boxes.
+        colors = ['blue', 'red']  # We will use blue and red boxes.
+        color_pairs = [(utils.COLORS[color], color) for color in colors]  # Get RGB values and color names.
+
+        # Add big boxes to the environment.
+        big_boxes = []
+        for color, color_name in color_pairs:
+            # Get a random pose for the big box.
+            big_box_pose = self.get_random_pose(env, big_box_size)
+            # Define the URDF using the box template and fill in the size and color.
+            big_box_urdf = self.fill_template('box/box-template.urdf', {'SIZE': big_box_size, 'COLOR': color})
+            # Add the big box to the environment.
+            big_box_id = env.add_object(big_box_urdf, big_box_pose, 'fixed')
+            big_boxes.append((big_box_id, big_box_pose, color_name))
+
+        # Add small boxes to the environment.
+        small_boxes = []
+        for color, color_name in color_pairs:
+            # Get a random pose for the small box.
+            small_box_pose = self.get_random_pose(env, small_box_size)
+            # Define the URDF using the box template and fill in the size and color.
+            small_box_urdf = self.fill_template('box/box-template.urdf', {'SIZE': small_box_size, 'COLOR': color})
+            # Add the small box to the environment.
+            small_box_id = env.add_object(small_box_urdf, small_box_pose)
+            small_boxes.append((small_box_id, small_box_pose, color_name))
+
+        # Define goals for each color pair.
+        for (big_box_id, big_box_pose, color_name), (small_box_id, _, _) in zip(big_boxes, small_boxes):
+            # Define the language goal.
+            language_goal = self.lang_template.format(color=color_name)
+            # Add the goal to the task.
+            self.add_goal(
+                objs=[small_box_id],  # The object to move.
+                matches=np.int32([[1]]),  # The object matches with the target.
+                targ_poses=[big_box_pose],  # The target pose is the pose of the big box.
+                replace=False,  # The small box should not be replaced by another.
+                rotations=True,  # Allow rotations.
+                metric='pose',  # Use the pose metric for evaluation.
+                params=None,  # No additional parameters.
+                step_max_reward=1,  # Full reward for completing this subtask.
+                language_goal=language_goal  # The language goal defined above.
+            )

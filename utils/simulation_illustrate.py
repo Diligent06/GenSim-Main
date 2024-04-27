@@ -102,7 +102,7 @@ def main(cfg):
         p.disconnect()
 
     text_file_path = './utils/data/'
-    text_file_name = 'GPT4-20-api-runtime-color-pose-ee-10_complete.txt'
+    text_file_name = 'GPT4-50-api-runtime-color-pose-ee-12_complete.txt'
     file = open(text_file_path+text_file_name, 'r', encoding='utf-8')
     complete_name = file.readlines()
     complete_name = [name[0:-1] for name in complete_name]

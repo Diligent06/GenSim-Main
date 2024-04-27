@@ -1,0 +1,64 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class GradientBowlAlignment(Task):
+    """Arrange bowls in gradient sequence on a line template from darkest to lightest."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Set max steps to twice the number of bowls to allow for alignment adjustments
+        self.ee = Suction  # Use Suction end-effector to lift bowls
+        self.lang_template = "place the {color} bowl on the green line"
+        self.task_completed_desc = "done aligning bowls."
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the shades of blue for the bowls
+        blue_shades = ['indigo', 'blue', 'cyan', 'silver', 'white']
+        # Sort the shades from darkest to lightest
+        sorted_shades = sorted(blue_shades, key=lambda x: utils.COLORS[x][2], reverse=True)
+
+        # Add line template
+        line_size = (0.15, 0.01, 0.001)  # Size of the line template
+        line_pose = self.get_random_pose(env, line_size)  # Get a random pose for the line template
+        line_urdf = 'line/single-green-line-template.urdf'
+        env.add_object(line_urdf, line_pose, 'fixed')  # Add the line template to the environment
+
+        # Add bowls
+        bowl_size = (0.12, 0.12, 0.06)  # Size of the bowls
+        bowl_urdf = 'bowl/bowl.urdf'
+        bowl_poses = []  # List to store the initial poses of the bowls
+        for shade in sorted_shades:
+            color = utils.COLORS[shade]  # Get the RGB color for the current shade
+            bowl_pose = self.get_random_pose(env, bowl_size)  # Get a random pose for the bowl
+            bowl_id = env.add_object(bowl_urdf, bowl_pose, color=color)  # Add the bowl to the environment
+            bowl_poses.append((bowl_id, bowl_pose))  # Store the bowl's ID and initial pose
+
+        # Define target poses for the bowls along the line template
+        line_x, line_y, _ = line_pose[0]  # Get the x, y coordinates of the line template
+        bowl_spacing = 0.05  # Spacing between the bowls on the line
+        targ_poses = []
+        for i, (bowl_id, _) in enumerate(bowl_poses):
+            # Calculate the target x position for each bowl to be on the line
+            targ_x = line_x - (len(bowl_poses) - 1) * bowl_spacing / 2 + i * bowl_spacing
+            # The target pose is on the line with the same y and z coordinates as the line template
+            targ_poses.append(((targ_x, line_y, line_pose[0][2]), line_pose[1]))
+
+        # Add goals for each bowl to be placed on the line in the correct order
+        for i, (bowl_id, _) in enumerate(bowl_poses):
+            language_goal = self.lang_template.format(color=sorted_shades[i])
+            self.add_goal(objs=[bowl_id], matches=np.ones((1, 1)), targ_poses=[targ_poses[i]],
+                          replace=True, rotations=False, metric='pose', params=None,
+                          step_max_reward=1 / len(bowl_poses), language_goal=language_goal)

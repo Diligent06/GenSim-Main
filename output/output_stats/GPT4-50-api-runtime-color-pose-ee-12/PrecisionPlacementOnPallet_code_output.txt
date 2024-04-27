@@ -1,0 +1,77 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class PrecisionPlacementOnPallet(Task):
+    """Place differently colored cylinders on specific locations on a pallet, matching colors to zones."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Assuming we have 5 cylinders to place, 2 steps per cylinder
+        self.lang_template = "place the {color} cylinder on the {color} zone on the pallet"
+        self.task_completed_desc = "all cylinders placed on the pallet."
+        self.ee = Suction  # Use Suction end-effector for picking and placing cylinders
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of cylinders and their colors
+        n_cylinders = 5
+        cylinder_colors = ['red', 'blue', 'green', 'yellow', 'purple']
+
+        # Add pallet
+        pallet_size = (0.3, 0.3, 0.02)  # Size of the pallet
+        pallet_pose = self.get_random_pose(env, pallet_size)
+        pallet_urdf = 'pallet/pallet.urdf'
+        env.add_object(pallet_urdf, pallet_pose, 'fixed')
+
+        # Add cylinders
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinder_size = (0.05, 0.05, 0.1)  # Size of the cylinder
+        cylinders = []
+        for i in range(n_cylinders):
+            # Generate a random pose for the cylinder
+            cylinder_pose = self.get_random_pose(env, cylinder_size)
+            # Get the color for the cylinder
+            color = utils.COLORS[cylinder_colors[i]]
+            # Replace the placeholders in the URDF template
+            replace = {'COLOR': color}
+            # Generate the URDF for the cylinder
+            cylinder_urdf = self.fill_template(cylinder_template, replace)
+            # Add the cylinder to the environment
+            cylinder_id = env.add_object(cylinder_urdf, cylinder_pose)
+            cylinders.append(cylinder_id)
+
+        # Add zones on the pallet for each cylinder
+        zone_template = 'zone/zone.urdf'
+        zone_size = (0.06, 0.06, 0)  # Size of the zone
+        for i, color_name in enumerate(cylinder_colors):
+            # Generate a random pose for the zone on the pallet
+            zone_pose = self.get_random_pose(env, zone_size)
+            # Get the color for the zone
+            zone_color = utils.COLORS[color_name]
+            # Replace the placeholders in the URDF template
+            replace = {'COLOR': zone_color}
+            # Generate the URDF for the zone
+            zone_urdf = self.fill_template(zone_template, replace)
+            # Add the zone to the environment
+            env.add_object(zone_urdf, zone_pose, 'fixed')
+
+            # Define the language goal
+            language_goal = self.lang_template.format(color=color_name)
+            # Add the goal for placing the cylinder in the correct zone
+            self.add_goal(objs=[cylinders[i]], matches=np.int32([[1]]), targ_poses=[zone_pose], replace=False,
+                          rotations=False, metric='pose', params=None, step_max_reward=1/n_cylinders,
+                          language_goal=language_goal)
+
+# Instantiate the task
+task = PrecisionPlacementOnPallet()

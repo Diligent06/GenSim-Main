@@ -1,0 +1,67 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class CylinderSortStand(Task):
+    """Sort cylinders of three different colors onto corresponding colored stands."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 6  # We expect 3 cylinders, so 6 steps should be enough (2x the number of add_goal calls)
+        self.ee = Suction  # Use Suction end-effector to pick and place cylinders vertically
+        self.lang_template = "place the {color} cylinder on the {color} stand"
+        self.task_completed_desc = "done sorting cylinders on stands."
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define colors for cylinders and stands
+        colors = ['red', 'green', 'blue']
+        color_names = ['red', 'green', 'blue']
+
+        # Add stands for cylinders
+        stand_size = (0.05, 0.05, 0.02)  # Size of the stand (x, y, z)
+        stand_urdf = 'stacking/stand.urdf'
+        stands = []
+        for color in colors:
+            # Generate a random pose for the stand
+            stand_pose = self.get_random_pose(env, stand_size)
+            # Add the stand to the environment with the corresponding color
+            stand_id = env.add_object(stand_urdf, stand_pose, color=utils.COLORS[color], category='fixed')
+            stands.append((stand_id, stand_pose))
+
+        # Add cylinders
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinder_size = (0.04, 0.04, 0.1)  # Size of the cylinder (x, y, z)
+        cylinders = []
+        for color in colors:
+            # Generate a random pose for the cylinder
+            cylinder_pose = self.get_random_pose(env, cylinder_size)
+            # IMPORTANT: REPLACE THE TEMPLATE URDF with `fill_template`
+            replace = {'COLOR': utils.COLORS[color]}
+            cylinder_urdf = self.fill_template(cylinder_template, replace)
+            # Add the cylinder to the environment
+            cylinder_id = env.add_object(cylinder_urdf, cylinder_pose)
+            cylinders.append((cylinder_id, cylinder_pose))
+
+        # Define goals for each cylinder to be placed on the stand with the matching color
+        for (cylinder_id, _), (_, stand_pose) in zip(cylinders, stands):
+            # Define the language goal for placing the cylinder
+            color = color_names[colors.index(color)]  # Get the color name for the language template
+            language_goal = self.lang_template.format(color=color)
+            # Add the goal for the cylinder to be placed on the stand
+            self.add_goal(objs=[cylinder_id], matches=np.int32([[1]]), targ_poses=[stand_pose], replace=False,
+                          rotations=False, metric='pose', params=None, step_max_reward=1 / len(cylinders),
+                          language_goal=language_goal)
+
+# Instantiate the task
+task = CylinderSortStand()

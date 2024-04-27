@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 184, in simulate_task
+    task, dataset, env, expert = self.setup_env()
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 118, in setup_env
+    task = eval(self.curr_task_name)()
+  File "<string>", line 22, in __init__
+NameError: name 'Suction' is not defined

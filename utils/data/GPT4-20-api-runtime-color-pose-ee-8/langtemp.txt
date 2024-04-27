@@ -1,0 +1,19 @@
+stack the {size} bowl on top of the {placement}
+place the {color} bowl on the {position} mark on the stand
+put the {color} cylinder in the {color} zone
+place the {color} cylinder on the {color} zone
+stack the {color} cylinder on the pallet
+place the {color} cylinder in the {color} zone
+stack the {color} cylinder on the {target_color} one
+stack the {size} cylinder
+stack the {color} cylinder on top of the {base}
+stack the {color} cylinder on the {target_color} zone
+place the {color} cylinder in the {color} zone
+stack the {color} cylinder on the {base}
+place the {color} block in the {color} bowl, then stack the bowls on the box in sequence
+place the {color} block on the {position} position on the grid
+build a pyramid with {object} on the {location}
+put the {color} cylinder in the container in ascending order
+put the {color} ball in the {color} bowl and balance the cylinder on top
+stack the {color} ring on the cylinder
+stack the {color} ring on the tower

@@ -1,0 +1,14 @@
+ValueError: operands could not be broadcast together with shapes (4,) (3,) 
+IndexError: tuple index out of range
+pybullet.error: Invalid input: expected positionA [x,y,z], orientationA [x,y,z,w], positionB, orientationB.
+AttributeError: module 'cliport.utils.utils' has no attribute 'get_fixed_orientation'
+TypeError: 'NoneType' object is not iterable
+pybullet.error: Invalid input: expected positionA [x,y,z], orientationA [x,y,z,w], positionB, orientationB.
+pybullet.error: Invalid input: expected positionA [x,y,z], orientationA [x,y,z,w], positionB, orientationB.
+TypeError: 'int' object is not subscriptable
+TypeError: 'NoneType' object is not callable
+TypeError: add_goal() missing 1 required positional argument: 'replace'
+pybullet.error: Invalid input: expected positionA [x,y,z], orientationA [x,y,z,w], positionB, orientationB.
+KeyError: 'zone'
+pybullet.error: Couldn't convert quaternion [x,y,z,w].
+TypeError: 'tuple' object does not support item assignment

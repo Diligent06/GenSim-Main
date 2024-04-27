@@ -1,0 +1,69 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class ZoneBlockSegregation(Task):
+    """Sort a mixture of differently colored blocks by placing each one on the matching colored zone on the tabletop."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Assuming we have 5 blocks to segregate, 2 steps per block (pick & place)
+        self.lang_template = "place the {color} block on the {color} zone"
+        self.task_completed_desc = "done segregating blocks."
+        self.ee = Suction  # Using Suction end-effector to pick and place blocks
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of blocks and zones
+        n_blocks = 5
+        n_zones = n_blocks  # One zone per block
+
+        # Define block size
+        block_size = (0.04, 0.04, 0.04)  # x, y, z dimensions
+
+        # Define colors for blocks and corresponding zones
+        colors = ['red', 'green', 'blue', 'yellow', 'purple']
+        np.random.shuffle(colors)  # Shuffle colors to randomize block order
+
+        # Add zones with matching colors to blocks
+        zone_size = (0.1, 0.1, 0)  # x, y dimensions (no height for zones)
+        zone_urdf = 'zone/zone.urdf'
+        zones = []
+        for i in range(n_zones):
+            zone_pose = self.get_random_pose(env, zone_size)
+            zone_color = utils.COLORS[colors[i]]
+            env.add_object(zone_urdf, zone_pose, 'fixed', color=zone_color)
+            zones.append((zone_pose, zone_size))
+
+        # Add blocks with corresponding colors
+        block_urdf = 'stacking/block.urdf'
+        blocks = []
+        for i in range(n_blocks):
+            block_pose = self.get_random_pose(env, block_size)
+            block_color = utils.COLORS[colors[i]]
+            block_id = env.add_object(block_urdf, block_pose, color=block_color)
+            blocks.append(block_id)
+
+            # Define the language goal for each block
+            language_goal = self.lang_template.format(color=colors[i])
+
+            # Add goal for each block to be placed in the matching color zone
+            self.add_goal(objs=[block_id], matches=np.ones((1, 1)), targ_poses=[zones[i][0]], replace=False,
+                          rotations=False, metric='zone', params=[zones[i]], step_max_reward=1/n_blocks,
+                          language_goal=language_goal)
+
+        # Set the task description
+        self.lang_goals = [self.lang_template.format(color=color) for color in colors]
+
+# Instantiate the task
+task = ZoneBlockSegregation()

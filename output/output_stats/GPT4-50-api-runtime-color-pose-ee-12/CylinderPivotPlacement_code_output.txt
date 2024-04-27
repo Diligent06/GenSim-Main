@@ -1,0 +1,70 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class CylinderPivotPlacement(Task):
+    """Pick up a series of differently colored cylindrical objects and place each one standing upright on individual small stands, arranged in an arc formation on the tabletop."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # We expect to place 5 cylinders, so we set max_steps to twice that number
+        self.ee = Suction  # We use Suction end-effector to pick up cylinders and move them on the Z axis
+        self.lang_template = "place the {color} cylinder on the {color} stand"
+        self.task_completed_desc = "done placing all cylinders on their stands."
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of cylinders and stands
+        n_objects = 5
+
+        # Define the size of the cylinders and stands
+        cylinder_size = (0.04, 0.04, 0.1)  # (radius, radius, height)
+        stand_size = (0.05, 0.05, 0.02)  # (radius, radius, height)
+
+        # Define the colors for the cylinders
+        colors = ['red', 'green', 'blue', 'yellow', 'purple']
+        color_rgb = [utils.COLORS[color] for color in colors]
+
+        # Add cylinders
+        cylinders = []
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        for i in range(n_objects):
+            # Get a random pose for the cylinder
+            pose = self.get_random_pose(env, cylinder_size)
+            replace = {'COLOR': color_rgb[i]}
+            # IMPORTANT: REPLACE THE TEMPLATE URDF
+            urdf = self.fill_template(cylinder_template, replace)
+            cylinder_id = env.add_object(urdf, pose)
+            cylinders.append((cylinder_id, pose))
+
+        # Add stands in an arc formation
+        stands = []
+        stand_template = 'stacking/stand.urdf'
+        for i in range(n_objects):
+            # Calculate the position for the stand in an arc
+            angle = np.linspace(-np.pi / 4, np.pi / 4, n_objects)[i]
+            x = 0.5 + 0.2 * np.cos(angle)
+            y = 0.2 * np.sin(angle)
+            z = 0.01  # Slightly above the table to avoid collision
+            stand_pose = ((x, y, z), (0, 0, 0, 1))  # No rotation needed for the stand
+            stand_id = env.add_object(stand_template, stand_pose, 'fixed')
+            stands.append((stand_id, stand_pose))
+
+        # Add goals for placing each cylinder on the corresponding stand
+        for i in range(n_objects):
+            cylinder_id, _ = cylinders[i]
+            _, stand_pose = stands[i]
+            language_goal = self.lang_template.format(color=colors[i])
+            self.add_goal(objs=[cylinder_id], matches=np.int32([[1]]), targ_poses=[stand_pose], replace=False,
+                          rotations=False, metric='pose', params=None, step_max_reward=1 / n_objects,
+                          language_goal=language_goal)

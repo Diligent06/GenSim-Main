@@ -1,0 +1,85 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class ColorCodedStackAlignment(Task):
+    """
+    Precisely stack variously colored cylinders on a stand in a vertical order
+    that matches the color sequence of zones indicated on the stand.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Set to twice the number of expected goals
+        self.ee = Suction  # Use Suction end-effector for vertical stacking
+        self.lang_template = "stack the {color} cylinder on the {target_color} zone"
+        self.task_completed_desc = "done stacking cylinders in color order."
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the size of the stand and add it to the environment
+        stand_size = (0.05, 0.15, 0.005)  # Size of the stand
+        stand_urdf = 'stacking/stand.urdf'
+        stand_pose = self.get_random_pose(env, stand_size)
+        env.add_object(stand_urdf, stand_pose, category='fixed')
+
+        # Define the size of the cylinders
+        cylinder_size = (0.04, 0.04, 0.08)  # Diameter, Diameter, Height
+
+        # Define the colors for the cylinders and the zones on the stand
+        colors = ['red', 'green', 'blue', 'yellow', 'purple']
+        color_zones = np.random.choice(colors, size=3, replace=False)  # Randomly choose 3 colors for zones
+
+        # Add color zones to the stand (represented as smaller cylinders)
+        zone_urdf = 'zone/zone.urdf'
+        zone_poses = []
+        for i, color in enumerate(color_zones):
+            # Calculate the position for each zone based on the stand position
+            zone_pose = (stand_pose[0][0], stand_pose[0][1], stand_pose[0][2] + (i+1) * cylinder_size[2])
+            zone_color = utils.COLORS[color]
+            env.add_object(zone_urdf, (zone_pose, stand_pose[1]), color=zone_color, category='fixed')
+            zone_poses.append((zone_pose, stand_pose[1]))  # Store the pose for goal checking
+
+        # Add cylinders to the environment
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinders = []
+        for color in colors:
+            # Get a random pose for the cylinder
+            cylinder_pose = self.get_random_pose(env, cylinder_size)
+            # Set the color for the cylinder
+            cylinder_color = utils.COLORS[color]
+            # Fill in the cylinder URDF template with the specific color
+            replace = {'COLOR': (cylinder_color[0], cylinder_color[1], cylinder_color[2])}
+            cylinder_urdf = self.fill_template(cylinder_template, replace)
+            # Add the cylinder to the environment
+            cylinder_id = env.add_object(cylinder_urdf, cylinder_pose)
+            cylinders.append((cylinder_id, color))
+
+        # Add goals for stacking cylinders on the correct color zones
+        for i, zone_color in enumerate(color_zones):
+            # Find the cylinder with the matching color
+            for cylinder_id, color in cylinders:
+                if color == zone_color:
+                    # Define the language goal
+                    language_goal = self.lang_template.format(color=color, target_color=zone_color)
+                    # Add the goal for the cylinder to be stacked on the zone of the same color
+                    self.add_goal(objs=[cylinder_id],
+                                  matches=np.ones((1, 1)),
+                                  targ_poses=[zone_poses[i]],
+                                  replace=False,
+                                  rotations=True,
+                                  metric='pose',
+                                  params=None,
+                                  step_max_reward=1 / len(color_zones),
+                                  language_goal=language_goal)
+                    break  # Move on to the next zone once the cylinder is found

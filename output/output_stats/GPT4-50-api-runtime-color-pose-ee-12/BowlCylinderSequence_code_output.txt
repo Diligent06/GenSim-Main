@@ -1,0 +1,72 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class BowlCylinderSequence(Task):
+    """Arrange a sequence of five differently colored cylinders inside a bowl, with the order based on the color spectrum from red to violet."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # We expect to have 5 goals, so max_steps is set to twice the number of goals
+        self.lang_template = "put the {color} cylinder in the bowl in the correct order"
+        self.task_completed_desc = "done arranging the cylinders."
+        self.ee = Suction  # We need to move objects on the Z axis, so we use the Suction end-effector
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the colors of the cylinders based on the color spectrum (red to violet)
+        cylinder_colors = ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'violet']
+        cylinder_color_values = [utils.COLORS[color] for color in cylinder_colors]
+
+        # Add the bowl to the environment
+        bowl_size = (0.18, 0.18, 0.06)  # Define the size of the bowl
+        bowl_pose = self.get_random_pose(env, bowl_size)  # Get a random pose for the bowl
+        bowl_urdf = 'bowl/bowl.urdf'
+        env.add_object(bowl_urdf, bowl_pose, 'fixed')  # Add the bowl as a fixed object
+
+        # Add cylinders to the environment
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinder_size = (0.05, 0.05, 0.08)  # Define the size of the cylinders
+        cylinder_poses = []  # Store the initial poses of the cylinders
+        cylinder_ids = []  # Store the object IDs of the cylinders
+
+        for i, color in enumerate(cylinder_colors):
+            # Get a random pose for the cylinder
+            cylinder_pose = self.get_random_pose(env, cylinder_size)
+            cylinder_poses.append(cylinder_pose)
+
+            # Fill in the cylinder URDF template with the specific color and size
+            replace = {'COLOR': cylinder_color_values[i], 'SIZE': cylinder_size}
+            cylinder_urdf = self.fill_template(cylinder_template, replace)
+
+            # Add the cylinder to the environment and store its ID
+            cylinder_id = env.add_object(cylinder_urdf, cylinder_pose)
+            cylinder_ids.append(cylinder_id)
+
+        # Define the target poses for the cylinders inside the bowl
+        # The cylinders should be arranged in a line, so we define their target x-coordinates accordingly
+        # The y-coordinate is the center of the bowl, and the z-coordinate is slightly above the bottom of the bowl
+        bowl_x, bowl_y, bowl_z = bowl_pose[0]
+        target_x_positions = np.linspace(bowl_x - 0.07, bowl_x + 0.07, 5)
+        target_z = bowl_z + 0.04  # Slightly above the bottom of the bowl to avoid collision
+        target_poses = [((x, bowl_y, target_z), bowl_pose[1]) for x in target_x_positions]
+
+        # Add goals for each cylinder
+        for i, (cylinder_id, target_pose) in enumerate(zip(cylinder_ids, target_poses)):
+            language_goal = self.lang_template.format(color=cylinder_colors[i])
+            self.add_goal(objs=[cylinder_id], matches=np.int32([[1]]), targ_poses=[target_pose], replace=True,
+                          rotations=False, metric='pose', params=None, step_max_reward=1/5,
+                          language_goal=language_goal)
+
+# Instantiate the task
+task = BowlCylinderSequence()

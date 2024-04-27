@@ -1,0 +1,5 @@
+ValueError: too many values to unpack (expected 8)
+ValueError: too many values to unpack (expected 2)
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Su\\GenSim-main/cliport/environments/assets/line/single-red-line.urdf'
+AttributeError: 'Environment' object has no attribute 'get_pose'
+TypeError: an integer is required (got type str)

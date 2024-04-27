@@ -1,0 +1,75 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class ColorGradientTower(Task):
+    """Build a vertical tower of five blocks on the stand, arranging them from bottom to top to create a color gradient from red to blue."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # We have 5 blocks to place, so 10 steps should be sufficient
+        self.lang_template = "place the {color} block on the {location} of the tower"
+        self.task_completed_desc = "done building the color gradient tower."
+        self.ee = Suction  # We need to move objects on the Z axis, so we use the Suction end-effector
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the color gradient from red to blue
+        gradient_colors = [
+            utils.COLORS['red'], utils.COLORS['orange'], utils.COLORS['yellow'],
+            utils.COLORS['green'], utils.COLORS['blue']
+        ]
+
+        # Add the stand where the blocks will be placed
+        stand_size = (0.05, 0.05, 0.005)  # Size of the stand
+        stand_urdf = 'stacking/stand.urdf'
+        stand_pose = self.get_random_pose(env, stand_size)
+        env.add_object(stand_urdf, stand_pose, category='fixed')
+
+        # Add blocks and define their initial random poses
+        block_size = (0.04, 0.04, 0.04)  # Size of each block
+        block_urdf = 'stacking/block.urdf'
+        block_poses = []
+        for color in gradient_colors:
+            block_pose = self.get_random_pose(env, block_size)
+            block_id = env.add_object(block_urdf, block_pose, color=color)
+            block_poses.append((block_id, block_pose))
+
+        # Define the target poses for each block on the stand
+        z_offset = 0.04  # Height of each block
+        target_poses = []
+        for i in range(len(gradient_colors)):
+            # Target pose is directly above the stand, with increasing z for each block
+            target_pose = (stand_pose[0][0], stand_pose[0][1], stand_pose[0][2] + z_offset * (i + 1))
+            target_poses.append((target_pose, (0, 0, 0, 1)))  # No rotation needed, keep the default orientation
+
+        # Add goals for each block
+        for i, (block_id, _) in enumerate(block_poses):
+            # Language goal describes the action to be taken
+            color_name = ['red', 'orange', 'yellow', 'green', 'blue'][i]
+            location = ['bottom', 'lower-middle', 'middle', 'upper-middle', 'top'][i]
+            language_goal = self.lang_template.format(color=color_name, location=location)
+
+            # Add the goal with the corresponding target pose
+            self.add_goal(
+                objs=[block_id],
+                matches=np.ones((1, 1)),  # Each block matches with one target pose
+                targ_poses=[target_poses[i]],  # Target pose for the current block
+                replace=False,  # Each block has a unique place and cannot be replaced
+                rotations=False,  # No rotation needed for the blocks
+                metric='pose',  # We are using pose metric for evaluation
+                params=None,  # No additional parameters needed
+                step_max_reward=1 / len(gradient_colors),  # Reward is evenly distributed across blocks
+                language_goal=language_goal  # Language goal for the current step
+            )

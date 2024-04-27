@@ -1,0 +1,81 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class CylinderSortAcrossPallet(Task):
+    """
+    Arrange a set of differently colored cylinders in a specific order on a pallet
+    by moving them across the tabletop without dropping any.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 4  # We expect to call self.add_goal twice, so set max_steps to twice that number
+        self.ee = Suction  # Use Suction end-effector to move cylinders on the Z axis
+        self.lang_template = "put the {color} cylinder on the {position} position on the pallet"
+        self.task_completed_desc = "done sorting cylinders across the pallet."
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of cylinders and their colors
+        n_cylinders = 3
+        cylinder_colors = ['red', 'green', 'blue']
+
+        # Add pallet to the environment
+        pallet_size = (0.3, 0.3, 0.05)  # Define the size of the pallet
+        pallet_pose = self.get_random_pose(env, pallet_size)  # Get a random pose for the pallet
+        pallet_urdf = 'pallet/pallet.urdf'
+        env.add_object(pallet_urdf, pallet_pose, 'fixed')  # Add the pallet as a fixed object
+
+        # Add cylinders to the environment
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinder_size = (0.05, 0.05, 0.1)  # Define the size of the cylinders
+        cylinder_ids = []
+        for i in range(n_cylinders):
+            # Get a random pose for the cylinder
+            cylinder_pose = self.get_random_pose(env, cylinder_size)
+            # Set the color of the cylinder
+            color = utils.COLORS[cylinder_colors[i]]
+            # IMPORTANT: REPLACE THE TEMPLATE URDF
+            replace = {'COLOR': color}
+            # Generate the URDF for the cylinder
+            cylinder_urdf = self.fill_template(cylinder_template, replace)
+            # Add the cylinder to the environment
+            cylinder_id = env.add_object(cylinder_urdf, cylinder_pose)
+            cylinder_ids.append(cylinder_id)
+
+        # Define the target positions on the pallet for each cylinder
+        # We will place them in a line with equal spacing
+        pallet_width = pallet_size[0]
+        spacing = pallet_width / (n_cylinders + 1)
+        target_positions = []
+        for i in range(n_cylinders):
+            # Calculate the x, y, z position for the target
+            x = pallet_pose[0][0] - pallet_width / 2 + spacing * (i + 1)
+            y = pallet_pose[0][1]
+            z = pallet_pose[0][2] + cylinder_size[2] / 2  # Place it on top of the pallet
+            # The target pose is the position with the same orientation as the pallet
+            target_pose = [(x, y, z), pallet_pose[1]]
+            target_positions.append(target_pose)
+
+        # Add goals for each cylinder
+        for i, cylinder_id in enumerate(cylinder_ids):
+            # Define the language goal for placing the cylinder
+            language_goal = self.lang_template.format(color=cylinder_colors[i], position=i+1)
+            # Add the goal for the cylinder to be placed at the target position
+            self.add_goal(objs=[cylinder_id], matches=np.int32([[1]]), targ_poses=[target_positions[i]],
+                          replace=False, rotations=False, metric='pose', params=None,
+                          step_max_reward=1/n_cylinders, language_goal=language_goal)
+
+        # Task description
+        self.lang_goals = [self.lang_template.format(color=color, position=i+1) for i, color in enumerate(cylinder_colors)]

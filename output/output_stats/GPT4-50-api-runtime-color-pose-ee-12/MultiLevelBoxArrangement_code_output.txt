@@ -1,0 +1,81 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class MultiLevelBoxArrangement(Task):
+    """Arrange boxes into a multi-level structure on the tabletop, with each level corresponding to a specific color."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Assuming we will have at most 5 goals
+        self.ee = Suction  # Using Suction since we need to move boxes along the Z axis
+
+        # Define the language templates for instructions
+        self.lang_template = "place the {color} box on the {level_color} level"
+        self.task_completed_desc = "done arranging the boxes into a multi-level structure."
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the colors for the levels and boxes
+        level_colors = ['blue', 'green', 'yellow']
+        box_colors = ['red', 'orange', 'purple', 'pink', 'cyan']
+
+        # Shuffle the box colors to ensure randomness
+        np.random.shuffle(box_colors)
+
+        # Define the sizes for the boxes, larger boxes at the base
+        box_sizes = [(0.07, 0.07, 0.07),  # Largest box
+                     (0.06, 0.06, 0.06),
+                     (0.05, 0.05, 0.05),
+                     (0.04, 0.04, 0.04),
+                     (0.03, 0.03, 0.03)]  # Smallest box
+
+        # Add zones for each level with corresponding colors
+        zone_poses = []
+        for i, color in enumerate(level_colors):
+            zone_size = (0.15, 0.15, 0.01)  # Fixed size for all zones
+            zone_pose = self.get_random_pose(env, zone_size)
+            zone_urdf = 'zone/zone.urdf'
+            env.add_object(zone_urdf, zone_pose, 'fixed', color=utils.COLORS[color])
+            zone_poses.append(zone_pose)
+
+        # Add boxes with corresponding sizes and colors
+        box_urdf_template = 'box/box-template.urdf'
+        boxes = []
+        for i, (size, color) in enumerate(zip(box_sizes, box_colors)):
+            box_pose = self.get_random_pose(env, size)
+            replace = {'SIZE': size, 'HALF_SIZE': tuple(s / 2 for s in size)}
+            box_urdf = self.fill_template(box_urdf_template, replace)
+            box_id = env.add_object(box_urdf, box_pose, color=utils.COLORS[color])
+            boxes.append((box_id, box_pose))
+
+        # Add goals for each box to be placed on the correct level
+        for i, (box_id, box_pose) in enumerate(boxes):
+            # The level is determined by the index of the box
+            level_idx = i // (len(boxes) // len(level_colors))
+            level_color = level_colors[level_idx]
+            target_pose = zone_poses[level_idx]  # Target pose is the pose of the zone
+
+            # Define the language goal for this step
+            language_goal = self.lang_template.format(color=box_colors[i], level_color=level_color)
+
+            # Add the goal for this box
+            self.add_goal(objs=[box_id],
+                          matches=np.ones((1, 1)),  # Single box to single target
+                          targ_poses=[target_pose],  # Target pose is the zone pose
+                          replace=False,  # Each box has a unique target
+                          rotations=False,  # Rotation is not considered in this task
+                          metric='pose',  # We are using pose metric
+                          params=None,  # No additional parameters needed
+                          step_max_reward=1 / len(boxes),  # Reward is split across all boxes
+                          language_goal=language_goal)  # Language goal as defined above

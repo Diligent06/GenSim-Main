@@ -1,0 +1,81 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class ColorGradientBowlArrangement(Task):
+    """
+    Arrange a gradient of colored balls within matching colored bowls spaced equidistantly on a predefined zone,
+    transitioning from one color to another across the spectrum.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Set to twice the number of expected goals
+        self.lang_template = "put the {color} ball in the matching {color} bowl"
+        self.task_completed_desc = "done arranging the color gradient in bowls."
+        self.ee = Suction  # Use Suction end-effector to pick up balls
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the colors for the gradient
+        gradient_colors = ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'violet']
+        n_balls = len(gradient_colors)
+
+        # Add zone where the bowls will be placed
+        zone_size = (0.15, 0.15, 0)  # Size of the zone
+        zone_pose = self.get_random_pose(env, zone_size)
+        env.add_object('zone/zone.urdf', zone_pose, 'fixed')
+
+        # Add bowls and balls
+        bowls = []
+        balls = []
+        bowl_urdf = 'bowl/bowl.urdf'
+        ball_template = 'ball/ball-template.urdf'
+        for i, color in enumerate(gradient_colors):
+            # Add bowl
+            bowl_pose = self.get_random_pose(env, (0.1, 0.1, 0))  # Size of the bowl
+            bowl_id = env.add_object(bowl_urdf, bowl_pose, color=utils.COLORS[color])
+            bowls.append((bowl_id, bowl_pose))
+
+            # Add ball
+            ball_size = (0.04, 0.04, 0.04)  # Size of the ball
+            ball_pose = self.get_random_pose(env, ball_size)
+            replace = {'COLOR': utils.COLORS[color]}
+            ball_urdf = self.fill_template(ball_template, replace)
+            ball_id = env.add_object(ball_urdf, ball_pose)
+            balls.append(ball_id)
+
+            # Define the language goal
+            language_goal = self.lang_template.format(color=color)
+
+            # Add goal for each ball to be in the matching bowl
+            self.add_goal(objs=[ball_id], matches=np.ones((1, 1)), targ_poses=[bowl_pose], replace=False,
+                          rotations=False, metric='pose', params=None, step_max_reward=1/n_balls,
+                          language_goal=language_goal)
+
+        # The target poses for the bowls are spaced equidistantly within the zone
+        # We calculate the positions based on the number of bowls and the size of the zone
+        bowl_spacing = zone_size[0] / (n_balls + 1)
+        for i, (bowl_id, bowl_pose) in enumerate(bowls):
+            # Calculate the new x position within the zone for each bowl
+            new_x = zone_pose[0][0] - zone_size[0]/2 + bowl_spacing * (i + 1)
+            # Update the bowl's y position to be the same as the zone's y position
+            new_y = zone_pose[0][1]
+            # The z position remains the same as the bowl's original z position
+            new_z = bowl_pose[0][2]
+            # Update the bowl's pose
+            bowls[i] = (bowl_id, ((new_x, new_y, new_z), bowl_pose[1]))
+
+        # Move the bowls to their new positions
+        for bowl_id, bowl_pose in bowls:
+            p.resetBasePositionAndOrientation(bowl_id, bowl_pose[0], bowl_pose[1])

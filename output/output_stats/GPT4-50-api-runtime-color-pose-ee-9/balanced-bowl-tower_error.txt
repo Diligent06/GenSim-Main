@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 200, in simulate_task
+    total_reward = self.run_one_episode(dataset, expert, env, task, episode, seed)
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 146, in run_one_episode
+    obs = env.reset()
+  File "C:\Users\Su\GenSim-main\cliport\environments\environment.py", line 284, in reset
+    self.task.reset(self)
+  File "<string>", line 60, in reset
+ValueError: operands could not be broadcast together with shapes (4,) (3,) 

@@ -1,0 +1,8 @@
+TypeError: 'tuple' object does not support item assignment
+TypeError: 'tuple' object does not support item assignment
+AttributeError: module 'cliport.tasks.primitives' has no attribute 'pick_place'
+AttributeError: 'Environment' object has no attribute 'get_pose'
+TypeError: an integer is required (got type str)
+AttributeError: 'tuple' object has no attribute 'set'
+TypeError: unhashable type: 'list'
+AttributeError: module 'cliport.tasks.primitives' has no attribute 'pick_place'

@@ -1,0 +1,84 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class GradientBowlRim(Task):
+    """Place a sequence of differently sized and colored balls in ascending order of size around the rim of a bowl."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # We expect to place 5 balls, so max_steps is twice that number
+        self.lang_template = "place the {color} ball on the rim of the bowl"
+        self.task_completed_desc = "all balls are placed on the bowl's rim."
+        self.ee = Suction  # Using Suction end-effector to pick up balls
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Add a bowl to the environment
+        bowl_size = (0.18, 0.18, 0.06)  # Approximate size of the bowl
+        bowl_pose = self.get_random_pose(env, bowl_size)
+        bowl_urdf = 'bowl/bowl.urdf'
+        env.add_object(bowl_urdf, bowl_pose, 'fixed')
+
+        # Define the sizes and colors for the balls
+        ball_sizes = [(0.04, 0.04, 0.04), (0.05, 0.05, 0.05), (0.06, 0.06, 0.06),
+                      (0.07, 0.07, 0.07), (0.08, 0.08, 0.08)]  # Ascending sizes
+        ball_colors = ['red', 'orange', 'yellow', 'green', 'blue']  # Gradient colors
+
+        # Add balls to the environment
+        ball_template = 'ball/ball-template.urdf'
+        ball_poses = []  # Store initial poses to use as target poses later
+        for i, (size, color_name) in enumerate(zip(ball_sizes, ball_colors)):
+            color = utils.COLORS[color_name]  # Get the RGB values for the color
+            ball_pose = self.get_random_pose(env, size)
+            ball_poses.append(ball_pose)  # Save the pose for creating the goal later
+            replace = {'SIZE': size, 'COLOR': color}
+            ball_urdf = self.fill_template(ball_template, replace)
+            env.add_object(ball_urdf, ball_pose)
+
+        # Calculate the target poses for the balls on the rim of the bowl
+        # We want to place them in a semi-circular pattern around the rim
+        rim_poses = self.calculate_rim_poses(bowl_pose, ball_sizes)
+
+        # Add goals for each ball
+        for i, (ball_pose, rim_pose) in enumerate(zip(ball_poses, rim_poses)):
+            color_name = ball_colors[i]
+            language_goal = self.lang_template.format(color=color_name)
+            self.add_goal(objs=[i], matches=np.ones((1, 1)), targ_poses=[rim_pose],
+                          replace=False, rotations=False, metric='pose', params=None,
+                          step_max_reward=1/len(ball_sizes), language_goal=language_goal)
+
+    def calculate_rim_poses(self, bowl_pose, ball_sizes):
+        """Calculate the target poses for the balls on the rim of the bowl."""
+        # Assuming the bowl is placed at the origin and we want to place the balls
+        # around the positive x semi-circle of the bowl's rim
+        bowl_x, bowl_y, bowl_z = bowl_pose[0]
+        bowl_radius = 0.09  # Half of the bowl's diameter
+        rim_height = bowl_z + 0.03  # Slightly above the bowl's rim
+
+        # Calculate the angular step between each ball based on their sizes
+        total_size = sum(size[0] for size in ball_sizes)  # Sum of diameters
+        remaining_space = np.pi * bowl_radius - total_size  # Remaining space on the rim
+        angular_step = remaining_space / (len(ball_sizes) + 1)
+
+        # Calculate the poses
+        rim_poses = []
+        angle = angular_step
+        for size in ball_sizes:
+            x = bowl_x + bowl_radius * np.cos(angle)
+            y = bowl_y + bowl_radius * np.sin(angle)
+            z = rim_height
+            rim_poses.append([(x, y, z), (0, 0, 0, 1)])  # No rotation needed
+            angle += size[0] + angular_step
+
+        return rim_poses

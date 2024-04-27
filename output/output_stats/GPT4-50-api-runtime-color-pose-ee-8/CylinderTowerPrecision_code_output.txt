@@ -1,0 +1,96 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class CylinderTowerPrecision(Task):
+    """
+    Stack five uniquely colored cylinders in a vertical tower on a designated zone,
+    ensuring the bottom cylinder has the largest diameter and each subsequent
+    cylinder has a progressively smaller diameter.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # We will have 5 goals, so 10 steps should be sufficient
+        self.ee = Suction  # Suction end-effector is needed to lift cylinders along the Z axis
+
+        # Task-specific language templates
+        self.lang_template = "stack the {color} cylinder"
+        self.task_completed_desc = "done stacking the cylinder tower."
+
+        # Additional initialization if needed
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the size of each cylinder from bottom to top
+        cylinder_sizes = [
+            (0.08, 0.08, 0.08),  # Bottom cylinder (largest)
+            (0.07, 0.07, 0.07),
+            (0.06, 0.06, 0.06),
+            (0.05, 0.05, 0.05),
+            (0.04, 0.04, 0.04)   # Top cylinder (smallest)
+        ]
+
+        # Define unique colors for each cylinder
+        cylinder_colors = [
+            utils.COLORS['red'],
+            utils.COLORS['green'],
+            utils.COLORS['blue'],
+            utils.COLORS['yellow'],
+            utils.COLORS['purple']
+        ]
+
+        # Add a zone where the cylinders will be stacked
+        zone_size = (0.15, 0.15, 0.01)  # Size of the zone
+        zone_pose = self.get_random_pose(env, zone_size)  # Random pose for the zone
+        env.add_object('zone/zone.urdf', zone_pose, 'fixed')  # Add the zone to the environment
+
+        # Add cylinders to the environment
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinder_poses = []  # Store initial poses to use as target poses
+        for i, size in enumerate(cylinder_sizes):
+            # Get a random pose for the cylinder
+            pose = self.get_random_pose(env, size)
+            cylinder_poses.append(pose)
+
+            # Replace placeholders in the URDF template with actual values
+            replace = {'SIZE': size, 'COLOR': cylinder_colors[i]}
+            urdf = self.fill_template(cylinder_template, replace)
+
+            # Add the cylinder to the environment
+            env.add_object(urdf, pose)
+
+        # Add goals for stacking cylinders
+        for i in range(len(cylinder_sizes)):
+            # The target pose is directly above the previous cylinder (or zone for the first one)
+            z_offset = sum([cylinder_sizes[j][2] for j in range(i)])  # Cumulative height of cylinders below
+            targ_pose = (zone_pose[0], zone_pose[1])  # Use the zone's x, y position
+            targ_pose[0][2] += z_offset  # Adjust the z position based on the offset
+
+            # Define the language goal for this step
+            language_goal = self.lang_template.format(color=cylinder_colors[i])
+
+            # Add the goal for the current cylinder
+            self.add_goal(
+                objs=[i],  # The current cylinder
+                matches=np.ones((1, 1)),  # Match the current cylinder to the target pose
+                targ_poses=[targ_pose],  # The target pose for the cylinder
+                replace=False,  # Each cylinder has a unique target pose
+                rotations=True,  # Allow rotations around the z-axis
+                metric='pose',  # Use pose metric for precision
+                params=None,  # No additional parameters needed
+                step_max_reward=1 / len(cylinder_sizes),  # Reward for this step
+                symmetries=[0],  # No rotational symmetry for cylinders
+                language_goal=language_goal  # Language goal for this step
+            )

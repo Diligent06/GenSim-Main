@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 200, in simulate_task
+    total_reward = self.run_one_episode(dataset, expert, env, task, episode, seed)
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 146, in run_one_episode
+    obs = env.reset()
+  File "C:\Users\Su\GenSim-main\cliport\environments\environment.py", line 284, in reset
+    self.task.reset(self)
+  File "<string>", line 46, in reset
+  File "C:\Users\Su\GenSim-main\cliport\environments\environment.py", line 194, in add_object
+    obj_id = pybullet_utils.load_urdf(
+  File "C:\Users\Su\GenSim-main\cliport\utils\pybullet_utils.py", line 21, in load_urdf
+    return pybullet_client.loadURDF(urdf, *args, **kwargs)
+pybullet.error: Cannot convert baseOrientation.

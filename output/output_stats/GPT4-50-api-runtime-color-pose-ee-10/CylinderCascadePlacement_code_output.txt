@@ -1,0 +1,81 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class CylinderCascadePlacement(Task):
+    """
+    Arrange a series of five cylinders of increasing sizes and alternating colors
+    in a descending staircase-like formation on top of a large flat box, ensuring
+    that each cylinder partially overlaps with the one below it to create a stable
+    cascading structure.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # We expect to place 5 cylinders, so max_steps is twice that number
+        self.ee = Suction  # We need to move objects on the Z axis, so we use the Suction end-effector
+
+        # Task description
+        self.lang_template = "place the {color} cylinder on the {placement}"
+        self.task_completed_desc = "done placing the cylinders in a cascading formation."
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the colors for the cylinders
+        colors = ['red', 'blue', 'green', 'yellow', 'purple']
+        color_rgb = [utils.COLORS[color] for color in colors]
+
+        # Add a large flat box to serve as the base for the cascade
+        box_size = (0.3, 0.3, 0.01)  # Size of the box
+        box_pose = self.get_random_pose(env, box_size)  # Random pose for the box
+        box_template = 'box/box-template.urdf'
+        replace = {'DIM': box_size}
+        box_urdf = self.fill_template(box_template, replace)
+        env.add_object(box_urdf, box_pose, 'fixed')
+
+        # Add cylinders of increasing sizes
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        prev_size = (0.02, 0.02, 0.08)  # Initial size for the smallest cylinder
+        prev_pose = box_pose  # We start placing on the box
+        prev_id = None
+        for i in range(5):
+            # Increase size for each cylinder
+            size = (prev_size[0] + 0.01, prev_size[1] + 0.01, prev_size[2])
+            pose = list(prev_pose[0])
+            pose[2] += prev_size[2]  # Increase z-coordinate to place on top of the previous cylinder
+
+            # Create a cascading effect by offsetting the x-coordinate
+            if prev_id is not None:
+                pose[0] -= (prev_size[0] - size[0]) / 2
+
+            # Convert pose back to tuple and add rotation (identity quaternion)
+            pose = (tuple(pose), (0, 0, 0, 1))
+
+            # Fill in the cylinder URDF template
+            replace = {'DIM': size, 'COLOR': color_rgb[i]}
+            cylinder_urdf = self.fill_template(cylinder_template, replace)
+
+            # Add the cylinder object
+            cylinder_id = env.add_object(cylinder_urdf, pose)
+            prev_size = size
+            prev_pose = pose
+            prev_id = cylinder_id
+
+            # Define the placement language
+            placement = "previous one" if prev_id else "box"
+            language_goal = self.lang_template.format(color=colors[i], placement=placement)
+
+            # Add goal for the current cylinder
+            self.add_goal(objs=[cylinder_id], matches=np.int32([[1]]), targ_poses=[pose], replace=False,
+                          rotations=True, metric='pose', params=None, step_max_reward=1/5,
+                          language_goal=language_goal)

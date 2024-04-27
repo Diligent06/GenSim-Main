@@ -1,0 +1,64 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class HeightSortedBlockTower(Task):
+    """Build a vertical tower by stacking five differently colored blocks in ascending order of height."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # We will have 5 goals, so 10 steps should be sufficient
+        self.lang_template = "stack the {color} block"
+        self.task_completed_desc = "done building the height-sorted block tower."
+        self.ee = Suction  # We need to move objects on the Z axis, so we use the Suction end-effector
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the colors and sizes for the blocks in ascending order of height
+        colors = ['red', 'green', 'blue', 'yellow', 'purple']
+        sizes = [(0.04, 0.04, 0.02),  # red block, shortest
+                 (0.04, 0.04, 0.04),  # green block
+                 (0.04, 0.04, 0.06),  # blue block
+                 (0.04, 0.04, 0.08),  # yellow block
+                 (0.04, 0.04, 0.10)]  # purple block, tallest
+
+        # Add blocks to the environment
+        block_urdf = 'stacking/block.urdf'
+        blocks = []
+        for i, color in enumerate(colors):
+            # Get a random pose for the block
+            pose = self.get_random_pose(env, sizes[i])
+            # Add the block to the environment with the specified color
+            block_id = env.add_object(block_urdf, pose, color=utils.COLORS[color])
+            blocks.append((block_id, sizes[i][2]))  # Store block ID and height for sorting
+
+        # Sort blocks by height in ascending order
+        blocks.sort(key=lambda x: x[1])
+
+        # Define the target pose for the base of the tower
+        base_height = 0.01  # Small offset from the ground to place the first block
+        target_pose = [(0.5, 0, base_height), (0, 0, 0, 1)]  # Default orientation
+
+        # Add goals for each block
+        for i, (block_id, _) in enumerate(blocks):
+            # Increment the Z coordinate for each block to stack them
+            target_pose[0] = (target_pose[0][0], target_pose[0][1], base_height + i * 0.02)
+            # Define the language goal for the current block
+            language_goal = self.lang_template.format(color=colors[i])
+            # Add the goal for the current block
+            self.add_goal(objs=[block_id], matches=np.ones((1, 1)), targ_poses=[target_pose],
+                          replace=False, rotations=True, metric='pose', params=None,
+                          step_max_reward=1 / len(blocks), language_goal=language_goal)
+
+# Instantiate the task
+task = HeightSortedBlockTower()

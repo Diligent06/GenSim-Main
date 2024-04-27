@@ -1,0 +1,76 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class BowlBridgeConstruction(Task):
+    """
+    Construct a bridge using two bowls and a plank.
+    Place the bowls upside down as supports and carefully balance a box,
+    serving as the plank, on top to span the gap between them.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 4  # We have two goals, so max_steps is twice that
+        self.lang_template = "construct a bridge using the {object}"
+        self.task_completed_desc = "done constructing the bowl bridge."
+        self.ee = Suction  # Using Suction end-effector to lift objects in Z axis
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the size of the bowls and the plank (box)
+        bowl_size = (0.18, 0.18, 0.06)  # Approximate dimensions for the bowl
+        plank_size = (0.6, 0.1, 0.02)  # Dimensions for the plank (box)
+
+        # Add two bowls to the environment
+        bowl_urdf = 'bowl/bowl.urdf'
+        bowls = []
+        for _ in range(2):
+            # Get a random pose for the bowl ensuring it's placed upside down
+            bowl_pose = self.get_random_pose(env, obj_size=bowl_size)
+            # Flip the bowl to be upside down
+            bowl_pose = (bowl_pose[0], utils.get_fixed_orientation([0, 0, 1], [np.pi, 0, 0]))
+            bowl_id = env.add_object(bowl_urdf, bowl_pose)
+            bowls.append((bowl_id, bowl_pose))
+
+        # Add the plank (box) to the environment
+        plank_template = 'box/box-template.urdf'
+        plank_color = utils.COLORS['brown']  # Color for the plank
+        plank_pose = self.get_random_pose(env, obj_size=plank_size)
+        replace = {'DIM': plank_size, 'COLOR': plank_color}
+        plank_urdf = self.fill_template(plank_template, replace)
+        plank_id = env.add_object(plank_urdf, plank_pose)
+
+        # Define the target poses for the bowls and plank
+        # The plank should be placed on top of the upside-down bowls to form a bridge
+        bowl_target_poses = [bowl[1] for bowl in bowls]  # Use the initial bowl poses as target poses
+        plank_target_pose = [(0.5 * (bowl_target_poses[0][0][0] + bowl_target_poses[1][0][0]),
+                              0.5 * (bowl_target_poses[0][0][1] + bowl_target_poses[1][0][1]),
+                              bowl_size[2] + plank_size[2] / 2),  # Z is the height of the bowl plus half the plank's thickness
+                             (0, 0, 0, 1)]  # No rotation for the plank
+
+        # Add goals
+        # Goal 1: Place the first bowl upside down at its target location
+        self.add_goal(objs=[bowls[0][0]], matches=np.ones((1, 1)), targ_poses=[bowl_target_poses[0]],
+                      replace=False, rotations=True, metric='pose', params=None, step_max_reward=0.5,
+                      language_goal=self.lang_template.format(object="first bowl"))
+
+        # Goal 2: Place the second bowl upside down at its target location
+        self.add_goal(objs=[bowls[1][0]], matches=np.ones((1, 1)), targ_poses=[bowl_target_poses[1]],
+                      replace=False, rotations=True, metric='pose', params=None, step_max_reward=0.5,
+                      language_goal=self.lang_template.format(object="second bowl"))
+
+        # Goal 3: Place the plank on top of the bowls to form the bridge
+        self.add_goal(objs=[plank_id], matches=np.ones((1, 1)), targ_poses=[plank_target_pose],
+                      replace=False, rotations=False, metric='pose', params=None, step_max_reward=1,
+                      language_goal=self.lang_template.format(object="plank"))

@@ -1,0 +1,48 @@
+stack the {color} block
+put the {color} cylinder in the bowl in the correct order
+put the {color} cylinders in the {bowl_color} bowl
+stack the {object} in the {container}
+place the {color} bowl on the {color} zone on the pallet
+stack the {color1} bowl on top of the {color2} bowl with the green ball inside
+place the {color} bowl {position} on the {target_color} bowl
+place the {color} cylinder on the green line in {position} position
+stack a {color} {shape} on the {surface}
+put the {color} box on the {color} line in the container
+put the {color} cylinder in the {color} container
+put the {color} cylinder in the {color} zone
+put the {color} cylinder in the container
+place the {color} cylinder on the {position} position
+place the {color} cylinder in the {color} zone
+stack the {color} cylinder on the {target_color} zone
+stack the {color} {object} on the {target_object}
+stack the {color} cylinder on top of the {prev_color} one
+place the {color} ball on the {color} stand
+put the {color} cylinder in the {color} container
+put the {color} cylinder in the {color} zone
+put the {color} cylinder in the bowl, ordered by color gradient
+sort the cylinders by height in ascending order in the designated zone
+navigate the ball through the maze to the {color} zone
+put the {color} cylinders on the {color} pallet
+place the {color} cylinder on the {color} stand
+place the {color} cylinder on the {color} zone
+align the {color} cylinder on the green line
+stack the {color} cylinder on the {position} position on the stand
+stack the {color} cylinder
+place the {color} cylinder in the {color} zone
+stack the {object} on top of the {base}
+put the {color} ball in the matching bowl
+stack the {color} {object} on top of the {base_object}
+put the {color} cylinder on the {place}
+place the {color} box on the {level_color} level
+stack the {object} on the {place}
+move the {color} block from the pallet to the target zone
+stack the {color} ring on the {target}
+stack one {object1} and two {object2} on the {object3}
+stack the {color} box on top of the {place} box
+stack the {color} block on the {color} zone on the pallet
+place the {color} ball in the {color} bowl
+stack the {color} bowl
+place the {color} cylinder on the {color} zone on the pallet
+place the {color} cylinder in the {color} bowl
+stack the {color} bowl
+stack the {color} bowl on top of the {target_color} bowl

@@ -1,0 +1,72 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class BowlToBowlTransfer(Task):
+    """
+    Task to transfer five blue balls from a large red bowl to a smaller yellow bowl.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Set to twice the number of goals (5 balls to transfer)
+        self.lang_template = "transfer the blue ball from the red bowl to the yellow bowl"
+        self.task_completed_desc = "transferred all blue balls to the yellow bowl."
+        self.ee = Suction  # Use Suction end-effector to pick up balls
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define colors for the objects using the provided utils.COLORS dictionary
+        blue_color = utils.COLORS['blue']
+        red_color = utils.COLORS['red']
+        yellow_color = utils.COLORS['yellow']
+
+        # Define sizes for the bowls and balls
+        large_bowl_size = (0.18, 0.18, 0.06)  # Large red bowl
+        small_bowl_size = (0.12, 0.12, 0.04)  # Small yellow bowl
+        ball_size = (0.04, 0.04, 0.04)  # Blue balls
+
+        # Add large red bowl to the environment
+        large_bowl_pose = self.get_random_pose(env, large_bowl_size)
+        large_bowl_urdf = 'bowl/bowl.urdf'
+        env.add_object(large_bowl_urdf, large_bowl_pose, 'fixed', color=red_color)
+
+        # Add small yellow bowl to the environment
+        small_bowl_pose = self.get_random_pose(env, small_bowl_size)
+        small_bowl_urdf = 'bowl/bowl.urdf'
+        env.add_object(small_bowl_urdf, small_bowl_pose, 'fixed', color=yellow_color)
+
+        # Add five blue balls to the large red bowl
+        ball_urdf = 'ball/ball-template.urdf'
+        balls = []
+        for _ in range(5):
+            ball_pose = self.get_random_pose(env, ball_size)
+            ball_id = env.add_object(ball_urdf, ball_pose, color=blue_color)
+            balls.append(ball_id)
+
+        # Define the goal for each blue ball to be transferred to the small yellow bowl
+        for ball_id in balls:
+            self.add_goal(
+                objs=[ball_id],  # Object to move
+                matches=np.ones((1, 1)),  # One-to-one correspondence
+                targ_poses=[small_bowl_pose],  # Target pose is the pose of the small yellow bowl
+                replace=False,  # Each ball must be placed uniquely
+                rotations=False,  # No need to match rotations for balls
+                metric='pose',  # Use pose metric for precise placement
+                params=None,  # No additional parameters needed
+                step_max_reward=1,  # Full reward for each ball correctly transferred
+                language_goal=self.lang_template.format()  # Language goal for the task
+            )
+
+# Instantiate the task
+task = BowlToBowlTransfer()

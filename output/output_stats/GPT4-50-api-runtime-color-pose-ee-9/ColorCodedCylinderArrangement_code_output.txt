@@ -1,0 +1,79 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+
+class ColorCodedCylinderArrangement(Task):
+    """Arrange colored cylinders into corresponding colored zones on a grid."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # We expect to call add_goal 5 times, so max_steps is set to twice that number.
+        self.ee = Suction  # We need to move objects on the Z axis, so we use the Suction end-effector.
+
+        # Task description
+        self.lang_template = "put the {color} cylinder in the {color} zone"
+        self.task_completed_desc = "done arranging the cylinders."
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the colors and corresponding zones for the cylinders.
+        colors = ['red', 'green', 'blue', 'yellow', 'purple']
+        n_cylinders = len(colors)
+
+        # Add cylinders.
+        cylinder_size = (0.04, 0.04, 0.1)  # Diameter, Diameter, Height
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinders = []
+        for color in colors:
+            # Generate a random pose for the cylinder.
+            pose = self.get_random_pose(env, cylinder_size)
+            # Set the color of the cylinder.
+            rgb = utils.COLORS[color]
+            # Replace the placeholders in the URDF template.
+            replace = {'COLOR': rgb}
+            # Generate the URDF for the cylinder.
+            urdf = self.fill_template(cylinder_template, replace)
+            # Add the cylinder to the environment.
+            cylinder_id = env.add_object(urdf, pose)
+            cylinders.append((cylinder_id, color))
+
+        # Add zones.
+        zone_size = (0.1, 0.1, 0)  # Width, Depth, Height (zones are flat)
+        zone_urdf = 'zone/zone.urdf'
+        zones = []
+        for color in colors:
+            # Generate a random pose for the zone.
+            zone_pose = self.get_random_pose(env, zone_size)
+            # Set the color of the zone.
+            rgb = utils.COLORS[color]
+            # Add the zone to the environment with the specified color.
+            zone_id = env.add_object(zone_urdf, zone_pose, color=rgb)
+            zones.append((zone_id, zone_pose, color))
+
+        # Add goals for each cylinder to be in the matching color zone.
+        for cylinder, cylinder_color in cylinders:
+            # Find the target zone that matches the cylinder's color.
+            target_zone_pose = next(zone_pose for _, zone_pose, zone_color in zones if zone_color == cylinder_color)
+            # Define the language goal.
+            language_goal = self.lang_template.format(color=cylinder_color)
+            # Add the goal for the cylinder to be in the correct zone.
+            self.add_goal(
+                objs=[cylinder],
+                matches=np.ones((1, 1)),  # Each cylinder has one target zone.
+                targ_poses=[target_zone_pose],  # Target pose is the pose of the matching zone.
+                replace=False,  # Cylinders should not be replaced once in the zone.
+                rotations=False,  # Cylinders should remain upright, so no rotations.
+                metric='zone',  # We use the 'zone' metric to check if the cylinder is within the zone.
+                params=[(target_zone_pose, zone_size)],  # Parameters for the 'zone' metric.
+                step_max_reward=1 / n_cylinders,  # Reward is evenly distributed across all cylinders.
+                language_goal=language_goal
+            )

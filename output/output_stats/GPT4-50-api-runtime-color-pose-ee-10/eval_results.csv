@@ -1,0 +1,5 @@
+prompt,metric,success
+vanilla_task_generation_prompt,syntax,1.0
+vanilla_task_generation_prompt,runtime,0.84
+vanilla_task_generation_prompt,env.completion,0.38
+vanilla_task_generation_prompt,diversity,0.7448979591836685

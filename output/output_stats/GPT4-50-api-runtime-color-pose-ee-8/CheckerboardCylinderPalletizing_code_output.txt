@@ -1,0 +1,68 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class CheckerboardCylinderPalletizing(Task):
+    """Arrange cylinders on a pallet in a checkerboard pattern, alternating colors."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Assuming we will have 5 cylinders to place, 2 steps per cylinder
+        self.ee = Suction  # Using Suction end-effector to pick and place cylinders
+        self.lang_template = "place the {color} cylinder on the pallet at position {position}"
+        self.task_completed_desc = "done palletizing cylinders in a checkerboard pattern."
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of cylinders and the pallet size
+        n_cylinders = 5
+        pallet_size = (0.3, 0.3, 0.02)  # x, y, z dimensions for the pallet size
+
+        # Add pallet
+        pallet_urdf = 'pallet/pallet.urdf'
+        pallet_pose = self.get_random_pose(env, pallet_size)
+        env.add_object(pallet_urdf, pallet_pose, 'fixed')
+
+        # Define cylinder colors and create a checkerboard pattern
+        cylinder_colors = ['red', 'blue']  # Two colors to alternate in the checkerboard pattern
+        color_pattern = np.tile(cylinder_colors, (n_cylinders // len(cylinder_colors) + 1))[:n_cylinders]
+
+        # Add cylinders
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinder_size = (0.05, 0.05, 0.1)  # x, y, z dimensions for the cylinder size
+        cylinders = []
+        for i in range(n_cylinders):
+            pose = self.get_random_pose(env, cylinder_size)
+            color = utils.COLORS[color_pattern[i]]
+            replace = {'COLOR': color}
+            urdf = self.fill_template(cylinder_template, replace)
+            cylinder_id = env.add_object(urdf, pose)
+            cylinders.append((cylinder_id, color_pattern[i]))
+
+        # Define target positions on the pallet in a checkerboard pattern
+        # Assuming a 2x2 checkerboard pattern for simplicity
+        positions = [(0.1, 0.1, 0.01), (0.1, 0.2, 0.01), (0.2, 0.1, 0.01), (0.2, 0.2, 0.01)]
+        target_poses = [(utils.apply(pallet_pose, p), pallet_pose[1]) for p in positions]
+
+        # Add goals for each cylinder
+        for i, (cylinder_id, color) in enumerate(cylinders):
+            # Calculate the target position based on the checkerboard pattern
+            target_pose = target_poses[i % len(target_poses)]
+            language_goal = self.lang_template.format(color=color, position=i+1)
+            self.add_goal(objs=[cylinder_id], matches=np.int32([[1]]), targ_poses=[target_pose], replace=False,
+                          rotations=True, metric='pose', params=None, step_max_reward=1/n_cylinders,
+                          language_goal=language_goal)
+
+# Note: The above code assumes a simple 2x2 checkerboard pattern for demonstration purposes.
+# In a real scenario, the pattern size and the number of cylinders would need to be adjusted accordingly.

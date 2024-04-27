@@ -1,0 +1,74 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class CylinderBalanceBeam(Task):
+    """Balance a specified number of differently colored cylinders on a narrow beam without letting them fall off."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 4  # Assuming we will have 2 goals, so max_steps is twice that
+        self.lang_template = "balance the {color} cylinder on the beam"
+        self.task_completed_desc = "done balancing cylinders."
+        self.ee = Suction  # Suction is needed to lift cylinders in Z axis
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of cylinders to balance
+        n_cylinders = 3
+
+        # Define the size of the beam
+        beam_length = 0.3
+        beam_width = 0.02
+        beam_height = 0.005
+
+        # Add the beam to the environment
+        beam_urdf = 'line/single-green-line-template.urdf'
+        beam_size = (beam_length, beam_width, beam_height)
+        beam_pose = self.get_random_pose(env, beam_size)
+        env.add_object(beam_urdf, beam_pose, 'fixed')
+
+        # Define cylinder size
+        cylinder_radius = 0.01
+        cylinder_height = 0.05
+        cylinder_size = (2 * cylinder_radius, 2 * cylinder_radius, cylinder_height)
+
+        # Add cylinders to the environment
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinder_colors = ['red', 'green', 'blue']  # Define cylinder colors
+        cylinders = []
+
+        for i in range(n_cylinders):
+            # Get a random pose for the cylinder
+            cylinder_pose = self.get_random_pose(env, cylinder_size)
+            # Set the color for the cylinder
+            color = utils.COLORS[cylinder_colors[i]]
+            # Replace the placeholders in the URDF file
+            replace = {'COLOR': color}
+            # Generate the URDF for the cylinder
+            cylinder_urdf = self.fill_template(cylinder_template, replace)
+            # Add the cylinder to the environment
+            cylinder_id = env.add_object(cylinder_urdf, cylinder_pose)
+            cylinders.append(cylinder_id)
+
+            # Define the language goal
+            language_goal = self.lang_template.format(color=cylinder_colors[i])
+
+            # Add the goal for each cylinder to be balanced on the beam
+            self.add_goal(objs=[cylinder_id], matches=np.int32([[1]]), targ_poses=[beam_pose], replace=False,
+                          rotations=True, metric='pose', params=None, step_max_reward=1 / n_cylinders,
+                          language_goal=language_goal)
+
+        # Note: The cylinders should be placed such that they do not overlap on the beam
+        # and the beam should be long enough to accommodate all cylinders.

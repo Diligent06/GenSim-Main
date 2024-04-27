@@ -1,0 +1,14 @@
+IndexError: list index out of range
+ValueError: cannot convert float NaN to integer
+ValueError: cannot convert float NaN to integer
+KeyError: 'cylinder'
+ValueError: cannot convert float NaN to integer
+AssertionError: Zone x-coordinate is out of container bounds
+AttributeError: module 'cliport.utils.utils' has no attribute 'ordinal'
+TypeError: object of type 'numpy.float64' has no len()
+pybullet.error: Cannot convert baseOrientation.
+ValueError: cannot convert float NaN to integer
+IndexError: list index out of range
+AttributeError: 'Environment' object has no attribute 'get_object_color'
+AttributeError: 'int' object has no attribute 'pose'
+pybullet.error: Couldn't convert quaternion [x,y,z,w].

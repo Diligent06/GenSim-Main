@@ -1,0 +1,100 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class LayeredBlockTower(Task):
+    """
+    Build a multi-layered tower by alternating between stacking three red blocks
+    and placing a single green bowl as a layer separator on a black stand,
+    culminating in a tower of two block layers separated by a bowl.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 8  # We have 4 placement actions, so max_steps is twice that
+        self.lang_template = "stack {num_blocks} red blocks and place a green bowl on top"
+        self.task_completed_desc = "done building the layered block tower."
+        self.ee = Suction  # We need to move objects on the Z axis, so we use Suction
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the size and color of the blocks, bowls, and stand
+        block_size = (0.04, 0.04, 0.04)  # Size of the blocks
+        bowl_size = (0.12, 0.12, 0.06)   # Size of the bowls
+        stand_size = (0.05, 0.15, 0.005) # Size of the stand
+        block_color = utils.COLORS['red'] # Color for the blocks
+        bowl_color = utils.COLORS['green'] # Color for the bowls
+        stand_color = utils.COLORS['black'] # Color for the stand
+
+        # Add the black stand to the environment
+        stand_urdf = 'stacking/stand.urdf'
+        stand_pose = self.get_random_pose(env, stand_size)
+        env.add_object(stand_urdf, stand_pose, 'fixed', color=stand_color)
+
+        # Add three red blocks to the environment
+        block_urdf = 'stacking/block.urdf'
+        blocks = []
+        for _ in range(3):
+            block_pose = self.get_random_pose(env, block_size)
+            block_id = env.add_object(block_urdf, block_pose, color=block_color)
+            blocks.append(block_id)
+
+        # Add one green bowl to the environment
+        bowl_urdf = 'bowl/bowl.urdf'
+        bowl_pose = self.get_random_pose(env, bowl_size)
+        bowl_id = env.add_object(bowl_urdf, bowl_pose, color=bowl_color)
+
+        # Define target poses for the blocks and bowl on the stand
+        # Blocks will be stacked on the center of the stand
+        block_target_poses = [
+            (stand_pose[0], stand_pose[1]),  # First block on stand
+            (stand_pose[0], stand_pose[1]),  # Second block on top of the first
+            (stand_pose[0], stand_pose[1])   # Third block on top of the second
+        ]
+        # Update z-coordinate for stacking
+        block_target_poses[1][0][2] += block_size[2]
+        block_target_poses[2][0][2] += block_size[2] * 2
+
+        # Bowl will be placed on top of the three stacked blocks
+        bowl_target_pose = (
+            (stand_pose[0][0], stand_pose[0][1], stand_pose[0][2] + block_size[2] * 3),
+            stand_pose[1]
+        )
+
+        # Add goals for stacking blocks and placing the bowl
+        # First layer of blocks
+        self.add_goal(
+            objs=blocks,
+            matches=np.ones((3, 1)),
+            targ_poses=block_target_poses,
+            replace=False,
+            rotations=True,
+            metric='pose',
+            params=None,
+            step_max_reward=1 / 2,  # Half the reward for completing the first layer
+            language_goal=self.lang_template.format(num_blocks="three")
+        )
+
+        # Second goal for placing the bowl on top of the blocks
+        self.add_goal(
+            objs=[bowl_id],
+            matches=np.ones((1, 1)),
+            targ_poses=[bowl_target_pose],
+            replace=False,
+            rotations=False,
+            metric='pose',
+            params=None,
+            step_max_reward=1 / 2,  # Other half of the reward for placing the bowl
+            language_goal=self.lang_template.format(num_blocks="a")
+        )

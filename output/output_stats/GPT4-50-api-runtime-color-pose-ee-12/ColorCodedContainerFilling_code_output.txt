@@ -1,0 +1,64 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class ColorCodedContainerFilling(Task):
+    """Pick up and place differently colored cylindrical objects into matching colored containers."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Assuming we have 5 objects and 5 containers, 2 steps per goal
+        self.lang_template = "put the {color} cylinder in the {color} container"
+        self.task_completed_desc = "done filling all containers with matching colored cylinders."
+        self.ee = Suction  # Using Suction end-effector to pick and place cylinders
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of objects and containers
+        n_objects = 5
+        n_containers = 5
+
+        # Define available colors
+        colors = ['red', 'green', 'blue', 'yellow', 'purple']
+        color_names = [f"{color} cylinder" for color in colors]
+
+        # Add containers with matching colors
+        container_size = (0.1, 0.1, 0.05)  # Fixed size for containers
+        container_template = 'container/container-template.urdf'
+        container_poses = []
+        for i, color in enumerate(colors):
+            container_pose = self.get_random_pose(env, container_size)
+            container_color = utils.COLORS[color]
+            replace = {'DIM': container_size, 'HALF': (container_size[0] / 2, container_size[1] / 2, container_size[2] / 2), 'COLOR': container_color}
+            container_urdf = self.fill_template(container_template, replace)
+            env.add_object(container_urdf, container_pose, 'fixed')
+            container_poses.append(container_pose)
+
+        # Add cylindrical objects with matching colors
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        for i, color in enumerate(colors):
+            cylinder_size = (0.02, 0.02, 0.08)  # Fixed size for cylinders
+            cylinder_pose = self.get_random_pose(env, cylinder_size)
+            cylinder_color = utils.COLORS[color]
+            replace = {'DIM': cylinder_size, 'HALF': (cylinder_size[0] / 2, cylinder_size[1] / 2, cylinder_size[2] / 2), 'COLOR': cylinder_color}
+            cylinder_urdf = self.fill_template(cylinder_template, replace)
+            cylinder_id = env.add_object(cylinder_urdf, cylinder_pose)
+            
+            # Define the goal for each cylinder to be placed in the matching container
+            language_goal = self.lang_template.format(color=color)
+            self.add_goal(objs=[cylinder_id], matches=np.int32([[1]]), targ_poses=[container_poses[i]], replace=False,
+                          rotations=False, metric='pose', params=None, step_max_reward=1/n_objects,
+                          language_goal=language_goal)
+
+        # Set the task description
+        self.lang_goals = [self.lang_template.format(color=color) for color in color_names]

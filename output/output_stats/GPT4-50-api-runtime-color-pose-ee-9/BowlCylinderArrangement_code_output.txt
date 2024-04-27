@@ -1,0 +1,64 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class BowlCylinderArrangement(Task):
+    """
+    Arrange six cylinders of varying colors inside a large bowl, ensuring that no two cylinders of the same color are adjacent to each other.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 12  # We expect to arrange 6 cylinders, so max_steps is set to twice that number
+        self.lang_template = "put a {color} cylinder in the bowl without placing it next to another {color} cylinder"
+        self.task_completed_desc = "done arranging cylinders in the bowl."
+        self.ee = Suction  # Using Suction end-effector to pick and place cylinders
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Add a large bowl to the environment
+        bowl_size = (0.18, 0.18, 0.06)  # Size of the bowl (x, y, z)
+        bowl_pose = self.get_random_pose(env, bowl_size)  # Random pose for the bowl
+        bowl_urdf = 'bowl/bowl.urdf'
+        env.add_object(bowl_urdf, bowl_pose, 'fixed')  # Add bowl as a fixed object
+
+        # Define colors for the cylinders
+        colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange']
+        color_rgb = [utils.COLORS[color] for color in colors]  # Get RGB values for the colors
+
+        # Add six cylinders with varying colors to the environment
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinder_size = (0.05, 0.05, 0.1)  # Size of the cylinders (x, y, z)
+        cylinders = []
+        for i, color in enumerate(colors):
+            # Get a random pose for the cylinder
+            cylinder_pose = self.get_random_pose(env, cylinder_size)
+            # Fill the URDF template with the specific color and size for the cylinder
+            replace = {'COLOR': color_rgb[i], 'SIZE': cylinder_size}
+            cylinder_urdf = self.fill_template(cylinder_template, replace)
+            # Add the cylinder to the environment and store its ID
+            cylinder_id = env.add_object(cylinder_urdf, cylinder_pose)
+            cylinders.append(cylinder_id)
+
+        # Define the goal for the task
+        # Each cylinder must be placed in the bowl without adjacent cylinders having the same color
+        for i, cylinder_id in enumerate(cylinders):
+            # Define the language goal for placing this cylinder
+            language_goal = self.lang_template.format(color=colors[i])
+            # Add the goal for this cylinder
+            self.add_goal(objs=[cylinder_id], matches=np.ones((1, 1)), targ_poses=[bowl_pose], replace=True,
+                          rotations=False, metric='zone', params=[(bowl_pose, bowl_size)], step_max_reward=1/6,
+                          language_goal=language_goal)
+
+        # Note: The task does not enforce the adjacency constraint in the code.
+        # This constraint will need to be handled by the agent's policy or reward function.
