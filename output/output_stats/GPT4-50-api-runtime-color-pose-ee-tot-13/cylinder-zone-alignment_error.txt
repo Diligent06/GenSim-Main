@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 200, in simulate_task
+    total_reward = self.run_one_episode(dataset, expert, env, task, episode, seed)
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 157, in run_one_episode
+    obs, reward, done, info = env.step(act)
+  File "C:\Users\Su\GenSim-main\cliport\environments\environment.py", line 301, in step
+    timeout = self.task.primitive(self.movej, self.movep, self.ee, action['pose0'], action['pose1'])
+  File "C:\Users\Su\GenSim-main\cliport\tasks\primitives.py", line 43, in __call__
+    while not ee.detect_contact():  # and target_pose[2] > 0:
+AttributeError: 'Spatula' object has no attribute 'detect_contact'

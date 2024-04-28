@@ -1,0 +1,67 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class BowlArrangementChallenge(Task):
+    """
+    Arrange a sequence of five bowls in ascending order of size on a designated zone marked on the tabletop.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # We expect to call self.add_goal 5 times, so we set max_steps to twice that number.
+        self.lang_template = "place the {size} bowl in the designated zone"
+        self.task_completed_desc = "done arranging the bowls."
+        self.ee = Suction  # We use Suction because we need to move bowls on the Z axis.
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of bowls and their sizes in ascending order.
+        n_bowls = 5
+        bowl_sizes = np.linspace(0.05, 0.15, n_bowls)  # Generate 5 sizes from 0.05 to 0.15 meters.
+
+        # Add the designated zone where bowls will be arranged.
+        zone_size = (0.3, 0.3, 0)  # Define the size of the zone.
+        zone_pose = self.get_random_pose(env, zone_size)  # Get a random pose for the zone.
+        env.add_object('zone/zone.urdf', zone_pose, 'fixed')  # Add the zone to the environment.
+
+        # Initialize a list to store the bowl object IDs.
+        bowls = []
+
+        # Add bowls to the environment.
+        for i in range(n_bowls):
+            # Define the size of the bowl based on the ascending sizes.
+            bowl_size = (bowl_sizes[i], bowl_sizes[i], 0.04)  # All bowls have the same height.
+            bowl_pose = self.get_random_pose(env, bowl_size)  # Get a random pose for the bowl.
+            bowl_color = utils.COLORS['silver']  # Set the color of the bowl.
+            bowl_urdf = 'bowl/bowl.urdf'
+            bowl_id = env.add_object(bowl_urdf, bowl_pose, color=bowl_color)  # Add the bowl to the environment.
+            bowls.append((bowl_id, bowl_size))  # Store the bowl ID and size.
+
+        # Sort the bowls by size in ascending order.
+        bowls.sort(key=lambda x: x[1][0])
+
+        # Add goals for each bowl to be placed in the designated zone in the correct order.
+        for i, (bowl_id, bowl_size) in enumerate(bowls):
+            # Define the language goal for placing the bowl.
+            size_desc = ["smallest", "small", "medium", "large", "largest"]
+            language_goal = self.lang_template.format(size=size_desc[i])
+
+            # Add the goal for the current bowl.
+            self.add_goal(objs=[bowl_id], matches=np.ones((1, 1)), targ_poses=[zone_pose], replace=False,
+                          rotations=False, metric='pose', params=None, step_max_reward=1/n_bowls,
+                          language_goal=language_goal)
+
+        # Set the primitive and end-effector for the task.
+        self.primitive = primitives.push
+        self.ee = Suction

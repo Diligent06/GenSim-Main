@@ -1,0 +1,86 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class TieredTowerConstruction(Task):
+    """Construct a tiered tower on a pallet by stacking three layers of differently sized cylinders with the largest at the base and the smallest on top."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 6  # We expect to add three goals, so max_steps is twice that number
+        self.lang_template = "stack the {color} cylinder on the {location} layer"
+        self.task_completed_desc = "done constructing the tiered tower."
+        self.ee = Suction  # Use Suction end-effector to move objects on the Z axis
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the sizes for the three cylinders (largest to smallest)
+        sizes = [
+            (0.08, 0.08, 0.04),  # Base cylinder
+            (0.06, 0.06, 0.04),  # Middle cylinder
+            (0.04, 0.04, 0.04)   # Top cylinder
+        ]
+
+        # Define the colors for the three cylinders
+        colors = [
+            utils.COLORS['blue'],  # Base cylinder
+            utils.COLORS['green'],  # Middle cylinder
+            utils.COLORS['red']    # Top cylinder
+        ]
+
+        # Add pallet.
+        pallet_size = (0.3, 0.3, 0.02)  # Size of the pallet
+        pallet_urdf = 'pallet/pallet.urdf'
+        pallet_pose = self.get_random_pose(env, pallet_size)
+        env.add_object(pallet_urdf, pallet_pose, 'fixed')
+
+        # Add cylinders and store their IDs and initial poses.
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinder_ids = []
+        cylinder_poses = []
+        for i, size in enumerate(sizes):
+            # Get a random pose for the cylinder
+            pose = self.get_random_pose(env, size)
+            replace = {'SIZE': size}
+            # Fill the URDF template with size and color
+            urdf = self.fill_template(cylinder_template, replace)
+            # Add the cylinder to the environment
+            cylinder_id = env.add_object(urdf, pose, color=colors[i])
+            cylinder_ids.append(cylinder_id)
+            cylinder_poses.append(pose)
+
+        # Define the target poses for the cylinders on the pallet
+        # The cylinders should be stacked with the largest at the bottom and the smallest on top
+        # The target poses are directly above the center of the pallet
+        pallet_center = pallet_pose[0]
+        z_offset = pallet_size[2]  # Start at the top of the pallet
+        target_poses = []
+        for size in sizes:
+            z_offset += size[2] / 2  # Increment z by half the height of the cylinder
+            target_poses.append((pallet_center[0], pallet_center[1], z_offset))
+            z_offset += size[2] / 2  # Increment z for the next cylinder
+
+        # Add goals for each cylinder
+        for i, cylinder_id in enumerate(cylinder_ids):
+            # The target pose is the position on the pallet and the initial orientation of the cylinder
+            target_pose = (target_poses[i], cylinder_poses[i][1])
+            # Define the language goal for each cylinder
+            color_name = ['blue', 'green', 'red'][i]
+            location = ['base', 'middle', 'top'][i]
+            language_goal = self.lang_template.format(color=color_name, location=location)
+            # Add the goal for the current cylinder
+            self.add_goal(objs=[cylinder_id], matches=np.ones((1, 1)), targ_poses=[target_pose], replace=False,
+                          rotations=True, metric='pose', params=None, step_max_reward=1/3, language_goal=language_goal)
+
+        # The task is to stack the cylinders in the correct order on the pallet

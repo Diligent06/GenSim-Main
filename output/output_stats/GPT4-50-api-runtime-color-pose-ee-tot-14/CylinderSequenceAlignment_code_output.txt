@@ -1,0 +1,68 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class CylinderSequenceAlignment(Task):
+    """Arrange a sequence of five cylinders in ascending order of height along a single green line marker on the tabletop."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Set to twice the number of goals (5 cylinders to align)
+        self.ee = Suction  # Use Suction end-effector to move cylinders on the Z axis
+        self.lang_template = "place the {color} cylinder on the green line in {order} order of height"
+        self.task_completed_desc = "done arranging cylinders."
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of cylinders and their sizes in ascending order of height
+        n_cylinders = 5
+        cylinder_heights = np.linspace(0.05, 0.15, n_cylinders)  # Heights from 0.05 to 0.15 meters
+
+        # Add the green line marker to the environment
+        line_size = (0.01, 0.5, 0.001)  # Thin and long line
+        line_pose = self.get_random_pose(env, line_size)
+        line_urdf = 'line/single-green-line-template.urdf'
+        env.add_object(line_urdf, line_pose, 'fixed')
+
+        # Add cylinders to the environment
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinder_radius = 0.02  # Fixed radius for all cylinders
+        cylinder_colors = ['red', 'blue', 'green', 'yellow', 'purple']  # Distinct colors for each cylinder
+        cylinder_poses = []  # Store initial poses to use as target poses later
+
+        for i in range(n_cylinders):
+            # Define the size and color of the cylinder
+            size = (2 * cylinder_radius, 2 * cylinder_radius, cylinder_heights[i])
+            color = utils.COLORS[cylinder_colors[i]]
+
+            # Get a random pose for the cylinder
+            pose = self.get_random_pose(env, size)
+            cylinder_poses.append(pose)
+
+            # Fill the URDF template and add the object
+            replace = {'SIZE': size, 'COLOR': color}
+            urdf = self.fill_template(cylinder_template, replace)
+            env.add_object(urdf, pose)
+
+        # Define target poses along the green line for the cylinders
+        # The x-coordinate is fixed, y-coordinates are spaced along the line, z-coordinate is the line's z plus the cylinder's height/2
+        line_x, line_y, line_z = line_pose[0]
+        target_y_positions = np.linspace(line_y - 0.2, line_y + 0.2, n_cylinders)
+        target_poses = [(line_x, y_pos, line_z + cylinder_heights[i] / 2) for i, y_pos in enumerate(target_y_positions)]
+
+        # Add goals for each cylinder to be placed in ascending order of height along the green line
+        for i in range(n_cylinders):
+            language_goal = self.lang_template.format(color=cylinder_colors[i], order="ascending")
+            self.add_goal(objs=[i], matches=np.int32([[1]]), targ_poses=[(target_poses[i], (0, 0, 0, 1))], replace=False,
+                          rotations=False, metric='pose', params=None, step_max_reward=1/n_cylinders,
+                          language_goal=language_goal)

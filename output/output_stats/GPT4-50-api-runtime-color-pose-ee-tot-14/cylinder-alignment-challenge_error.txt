@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 200, in simulate_task
+    total_reward = self.run_one_episode(dataset, expert, env, task, episode, seed)
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 154, in run_one_episode
+    act = expert.act(obs, info)
+  File "C:\Users\Su\GenSim-main\cliport\tasks\task.py", line 130, in act
+    if self.is_match(pose, targs[j], symmetry):
+  File "C:\Users\Su\GenSim-main\cliport\tasks\task.py", line 323, in is_match
+    diff_pos = np.float32(pose0[0][:2]) - np.float32(pose1[0][:2])
+ValueError: setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (2,) + inhomogeneous part.

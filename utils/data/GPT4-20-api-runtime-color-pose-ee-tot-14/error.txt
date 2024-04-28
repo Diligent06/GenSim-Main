@@ -1,0 +1,5 @@
+AttributeError: module 'cliport.tasks.primitives' has no attribute 'pick_place'
+ValueError: operands could not be broadcast together with shapes (3,) (2,) 
+TypeError: object of type 'float' has no len()
+AttributeError: 'Environment' object has no attribute 'move_object'
+AttributeError: 'Environment' object has no attribute 'get_object_color'

@@ -1,0 +1,85 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class CylinderSortStand(Task):
+    """Sort cylinders by color and stack them onto the corresponding colored stand without toppling the structure."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Assuming we have 5 cylinders to sort and stack, 2 steps per cylinder
+        self.lang_template = "put the {color} cylinder on the {color} stand"
+        self.task_completed_desc = "done sorting and stacking cylinders."
+        self.ee = Suction  # Suction is needed to lift cylinders in Z axis
+        self.primitive = primitives.push  # Assuming push primitive is available for use if needed
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of cylinders and stands
+        n_cylinders = 5
+        n_stands = 5
+
+        # Define cylinder size
+        cylinder_size = (0.04, 0.04, 0.1)  # (radius, radius, height)
+
+        # Define stand size
+        stand_size = (0.05, 0.05, 0.005)  # (length, width, height)
+
+        # Cylinder template path
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+
+        # Stand template path
+        stand_urdf = 'stacking/stand.urdf'
+
+        # Available colors
+        colors = ['red', 'green', 'blue', 'yellow', 'purple']
+
+        # Shuffle colors to avoid always picking the same color
+        np.random.shuffle(colors)
+
+        # Add stands and cylinders to the environment
+        stands = []
+        cylinders = []
+        for i in range(n_cylinders):
+            # Add stand
+            stand_pose = self.get_random_pose(env, stand_size)
+            env.add_object(stand_urdf, stand_pose, 'fixed', color=utils.COLORS[colors[i]])
+            stands.append((stand_pose, colors[i]))
+
+            # Add cylinder
+            replace = {'COLOR': utils.COLORS[colors[i]]}
+            cylinder_urdf = self.fill_template(cylinder_template, replace)
+            cylinder_pose = self.get_random_pose(env, cylinder_size)
+            cylinder_id = env.add_object(cylinder_urdf, cylinder_pose)
+            cylinders.append((cylinder_id, colors[i]))
+
+        # Define goals for sorting and stacking cylinders
+        for cylinder_id, color in cylinders:
+            # Find the corresponding stand pose for the cylinder color
+            stand_pose = next(pose for pose, c in stands if c == color)
+
+            # Define the target pose for the cylinder on the stand
+            # The target pose is the stand pose with an offset in z by the cylinder height
+            target_pose = (stand_pose[0], (0, 0, stand_size[2] + cylinder_size[2] / 2))
+
+            # Define the language goal
+            language_goal = self.lang_template.format(color=color)
+
+            # Add goal for the cylinder to be on the stand
+            self.add_goal(objs=[cylinder_id], matches=np.ones((1, 1)), targ_poses=[target_pose], replace=False,
+                          rotations=False, metric='pose', params=None, step_max_reward=1 / n_cylinders,
+                          language_goal=language_goal)
+
+        # Note: The task assumes that the push primitive is not needed as the suction end-effector is used to pick and place cylinders.
+        # If the push primitive is needed for any reason, it can be used to adjust the cylinders' positions on the stands.

@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 216, in simulate_task
+    save_task_flag = self.critic.reflection(self.generated_task, self.generated_code, current_tasks=self.generated_tasks)
+  File "C:\Users\Su\GenSim-main\gensim\critic.py", line 74, in reflection
+    exec(reflection_def_cmd, globals())
+  File "<string>", line 1
+    task_reflection={"task-name": "cylinder-sort-and-stack",    "task-description": "Pick up uniquely colored cylinders and stack them on the corresponding colored corner markers in ascending order of size.",    "assets-used": ["cylinder/cylinder-template.urdf", "corner/corner-template.urdf"],    "reasons": "The task is somewhat similar to 'color-coded-cylinder-placement' and 'Cylinder Precision Stacking', but it adds the complexity of sorting by size and stacking in a specific location, which could be considered a novel combination of skills. However, the language description 'stack the {color}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ^
+SyntaxError: EOL while scanning string literal

@@ -87,7 +87,7 @@ def main(cfg):
     if p.isConnected():
         p.disconnect()
     
-    code_file_path = './output/output_stats/GPT4-50-api-runtime-color-pose-ee-12/BowlBlockTower_code_output.txt'
+    code_file_path = './output/output_stats/GPT4-50-api-runtime-color-pose-ee-12/BowlCylinderTower_code_output.txt'
     for i in range(len(code_file_path)-1, -1, -1):
         if code_file_path[i] == '/':
             task_name = code_file_path[i+1:-16]

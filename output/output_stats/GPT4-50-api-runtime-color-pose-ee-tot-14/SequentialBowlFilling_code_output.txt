@@ -1,0 +1,79 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class SequentialBowlFilling(Task):
+    """Fill three differently colored bowls with corresponding colored balls in a sequential order."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 6  # We have 3 goals and we set max_steps to twice the number of goals
+        self.ee = Suction  # We use Suction because we need to move balls on the Z axis
+
+        # Language templates for each step
+        self.lang_templates = [
+            "put the red ball in the red bowl",
+            "put the green ball in the green bowl",
+            "put the blue ball in the blue bowl"
+        ]
+        self.task_completed_desc = "done filling the bowls."
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define bowl and ball sizes
+        bowl_size = (0.15, 0.15, 0.05)  # x, y, z dimensions for the bowl
+        ball_size = (0.04, 0.04, 0.04)  # x, y, z dimensions for the ball
+
+        # Define colors for the bowls and balls
+        bowl_colors = ['red', 'green', 'blue']
+        ball_colors = ['red', 'green', 'blue']
+
+        # Add bowls and balls to the environment
+        bowls = []
+        balls = []
+        for i in range(3):
+            # Add bowl
+            bowl_pose = self.get_random_pose(env, bowl_size)
+            bowl_urdf = 'bowl/bowl.urdf'
+            bowl_color = utils.COLORS[bowl_colors[i]]
+            bowl_id = env.add_object(bowl_urdf, bowl_pose, 'fixed', color=bowl_color)
+            bowls.append((bowl_id, bowl_pose))
+
+            # Add ball
+            ball_pose = self.get_random_pose(env, ball_size)
+            ball_template = 'ball/ball-template.urdf'
+            ball_color = utils.COLORS[ball_colors[i]]
+            replace = {'COLOR': ball_color}
+            ball_urdf = self.fill_template(ball_template, replace)
+            ball_id = env.add_object(ball_urdf, ball_pose)
+            balls.append((ball_id, ball_pose))
+
+        # Add goals for each ball to be placed in the matching colored bowl
+        for i in range(3):
+            ball_id, _ = balls[i]
+            _, bowl_pose = bowls[i]
+            language_goal = self.lang_templates[i]
+            self.add_goal(
+                objs=[ball_id],
+                matches=np.ones((1, 1)),  # Each ball has only one matching bowl
+                targ_poses=[bowl_pose],  # Target pose is the pose of the matching bowl
+                replace=False,  # Each ball has a unique target
+                rotations=False,  # Balls do not need specific rotations
+                metric='pose',  # We use pose metric for precise placement
+                params=None,  # No additional parameters needed
+                step_max_reward=1 / 3,  # Reward is split across three goals
+                language_goal=language_goal
+            )
+
+# Instantiate the task
+task = SequentialBowlFilling()

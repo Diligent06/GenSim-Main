@@ -1,0 +1,68 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class CylinderTowerBalance(Task):
+    """
+    Stack and balance a tower of three differently colored cylinders on top of each other without letting them fall over.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 6  # We will have 3 goals, so max_steps is set to twice the number of goals
+        self.ee = Suction  # Suction end-effector is needed to lift cylinders along the Z axis
+        self.lang_template = "stack and balance the {color} cylinder"
+        self.task_completed_desc = "done stacking and balancing cylinders."
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the size of the cylinders
+        cylinder_size = (0.05, 0.05, 0.15)  # (radius, radius, height)
+
+        # Define the colors for the cylinders
+        colors = ['red', 'green', 'blue']
+        color_names = ['red', 'green', 'blue']
+        rgb_colors = [utils.COLORS[color] for color in colors]  # Get RGB values for the colors
+
+        # Add cylinders to the environment
+        cylinders = []
+        for i in range(3):
+            # Generate a random pose for the cylinder
+            pose = self.get_random_pose(env, cylinder_size)
+            # Fill the URDF template with the cylinder's size and color
+            replace = {'SIZE': cylinder_size, 'COLOR': rgb_colors[i]}
+            cylinder_urdf = self.fill_template('cylinder/cylinder-template.urdf', replace)
+            # Add the cylinder object to the environment
+            cylinder_id = env.add_object(cylinder_urdf, pose)
+            cylinders.append((cylinder_id, pose))
+
+        # Define the target poses for the cylinders to be stacked
+        # The target pose for each cylinder is on top of the previous one
+        targ_poses = [cylinders[0][1]]  # The first cylinder's target pose is its initial pose
+        for i in range(1, 3):
+            # The target pose for the next cylinder is on top of the previous one
+            x, y, z = targ_poses[i-1][0]
+            z += cylinder_size[2]  # Increase the z-coordinate by the height of the cylinder
+            targ_poses.append(((x, y, z), (0, 0, 0, 1)))  # Orientation is the same (no rotation)
+
+        # Add goals for stacking the cylinders
+        for i in range(3):
+            # Language goal describes the action to be performed with the specific color
+            language_goal = self.lang_template.format(color=color_names[i])
+            # Add the goal with the target pose and the corresponding cylinder
+            self.add_goal(objs=[cylinders[i][0]], matches=np.ones((1, 1)), targ_poses=[targ_poses[i]],
+                          replace=True, rotations=False, metric='pose', params=None,
+                          step_max_reward=1/3, language_goal=language_goal)
+
+# Instantiate the task
+task = CylinderTowerBalance()

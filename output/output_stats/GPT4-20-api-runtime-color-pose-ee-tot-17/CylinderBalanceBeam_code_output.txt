@@ -1,0 +1,78 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Spatula
+
+class CylinderBalanceBeam(Task):
+    """
+    Balance a series of differently colored cylinders on a narrow beam,
+    arranging them from one end to the other by color gradient without letting any fall.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Assuming we will have 5 cylinders and 2 steps per cylinder (pick and place)
+        self.lang_template = "balance the {color} cylinder on the beam"
+        self.task_completed_desc = "all cylinders are balanced on the beam."
+        self.ee = Spatula  # Using Spatula as we are moving objects in a 2D plane
+        self.primitive = primitives.push  # Using push primitive from cliport.tasks.primitives
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the colors for the cylinders in a gradient
+        cylinder_colors = ['red', 'orange', 'yellow', 'green', 'blue']
+        cylinder_color_values = [utils.COLORS[color] for color in cylinder_colors]
+
+        # Define the size of the cylinders
+        cylinder_size = (0.05, 0.05, 0.15)  # Diameter, Diameter, Height
+
+        # Define the size and pose of the beam
+        beam_length = 0.6  # Length of the beam
+        beam_width = 0.05  # Width of the beam, making it narrow
+        beam_height = 0.02  # Height of the beam
+        beam_size = (beam_length, beam_width, beam_height)
+        beam_pose = self.get_random_pose(env, beam_size)
+
+        # Add the beam to the environment
+        beam_template = 'line/single-green-line-template.urdf'
+        replace = {'LENGTH': beam_length, 'HALF_WIDTH': beam_width / 2}
+        beam_urdf = self.fill_template(beam_template, replace)
+        env.add_object(beam_urdf, beam_pose, 'fixed')
+
+        # Add cylinders to the environment
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinder_ids = []
+        for i, color in enumerate(cylinder_color_values):
+            # Get a random pose for the cylinder
+            cylinder_pose = self.get_random_pose(env, cylinder_size)
+            replace = {'COLOR': color, 'SIZE': cylinder_size}
+            cylinder_urdf = self.fill_template(cylinder_template, replace)
+            cylinder_id = env.add_object(cylinder_urdf, cylinder_pose)
+            cylinder_ids.append(cylinder_id)
+
+            # Define the language goal for placing this cylinder
+            language_goal = self.lang_template.format(color=cylinder_colors[i])
+
+            # Calculate the target pose on the beam for this cylinder
+            # We place cylinders from one end to the other, spaced evenly
+            target_x = beam_pose[0][0] - beam_length / 2 + (i + 0.5) * (beam_length / len(cylinder_colors))
+            target_y = beam_pose[0][1]
+            target_z = beam_pose[0][2] + beam_height / 2 + cylinder_size[2] / 2  # On top of the beam
+            target_pose = [(target_x, target_y, target_z), (0, 0, 0, 1)]  # No rotation needed
+
+            # Add the goal for this cylinder
+            self.add_goal(objs=[cylinder_id], matches=np.int32([[1]]), targ_poses=[target_pose], replace=False,
+                          rotations=False, metric='pose', params=None, step_max_reward=1 / len(cylinder_colors),
+                          language_goal=language_goal)
+
+        # The task is to arrange the cylinders in order on the beam without letting any fall

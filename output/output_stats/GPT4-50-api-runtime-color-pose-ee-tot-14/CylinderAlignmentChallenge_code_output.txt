@@ -1,0 +1,80 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class CylinderAlignmentChallenge(Task):
+    """
+    Arrange a series of differently colored cylinders along a single green line,
+    ensuring each cylinder is standing upright and centered on the line.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Assuming we will have 5 cylinders to align, 2 steps per cylinder
+        self.ee = Suction  # Suction end-effector is needed to pick and place cylinders
+        self.lang_template = "place the {color} cylinder on the green line"
+        self.task_completed_desc = "done aligning cylinders."
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of cylinders to align
+        n_cylinders = 5
+
+        # Add the green line to the environment
+        line_size = (0.5, 0.01, 0.005)  # Size of the line (length, width, height)
+        line_pose = self.get_random_pose(env, line_size)  # Get a random pose for the line
+        line_template = 'line/single-green-line-template.urdf'
+        line_urdf = self.fill_template(line_template, {'DIM': line_size})
+        env.add_object(line_urdf, line_pose, 'fixed')
+
+        # Define cylinder properties
+        cylinder_size = (0.02, 0.02, 0.1)  # Size of the cylinder (radius, radius, height)
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+
+        # Define available colors
+        colors = ['red', 'blue', 'green', 'yellow', 'purple']
+
+        # Add cylinders to the environment
+        for i in range(n_cylinders):
+            # Get a random pose for the cylinder
+            cylinder_pose = self.get_random_pose(env, cylinder_size)
+            # Get the color for the cylinder
+            color_name = colors[i]
+            color_rgb = utils.COLORS[color_name]
+            # Fill the cylinder URDF template with the specific color
+            cylinder_urdf = self.fill_template(cylinder_template, {'COLOR': color_rgb})
+            # Add the cylinder object to the environment
+            cylinder_id = env.add_object(cylinder_urdf, cylinder_pose)
+            
+            # Define the target pose for the cylinder on the green line
+            # The target pose is the same x, y as the line, but with a fixed z to be standing upright
+            target_pose = (line_pose[0], line_pose[1], cylinder_size[2] / 2)
+            # The orientation is upright, so the quaternion is the identity quaternion
+            target_orientation = (0, 0, 0, 1)
+            
+            # Define the language goal for placing this cylinder
+            language_goal = self.lang_template.format(color=color_name)
+            
+            # Add the goal for this cylinder
+            self.add_goal(objs=[cylinder_id], 
+                          matches=np.ones((1, 1)), 
+                          targ_poses=[(target_pose, target_orientation)], 
+                          replace=False, 
+                          rotations=False, 
+                          metric='pose', 
+                          params=None, 
+                          step_max_reward=1 / n_cylinders, 
+                          language_goal=language_goal)
+
+        # Set the task description
+        self.lang_goals = [self.lang_template.format(color=color) for color in colors]

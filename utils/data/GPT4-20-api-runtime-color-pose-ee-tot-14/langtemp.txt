@@ -1,0 +1,20 @@
+build a pyramid with the {color} ball on {position}
+put the {color} ball in the {color} box
+balance the {color} ball on the inverted bowl
+put the {color} cylinder in the {color} bowl
+stack the {color} bowl on top of the {lower_color} one
+place the {color} box on top of the {color} cylinder
+put the {color} block in the matching {color} zone
+put the {object} in the {container_color} container
+stack the {color} cylinder
+stack the {color} cylinder
+stack the {color} cylinder in the corner
+place the {color} cylinder on the green line equidistant from its neighbors
+place the {color} cylinder in the {color} zone on the pallet
+place the {color} cylinder on the matching size zone on the pallet
+stack the {color} cylinder
+place the {color} block onto the {color} zone
+place the {color} block in the {color} zone
+stack the {color} bowl {position} in the marked zone
+place the {color} block on the {shape} marker
+place the {color} cylinder in the {color} zone

@@ -1,0 +1,73 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class CylinderBalanceBeam(Task):
+    """
+    Place a series of differently sized cylinders from smallest to largest along a narrow beam
+    without them toppling over.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Assuming we will have 5 cylinders and 2 steps per cylinder (pick and place)
+        self.lang_template = "place the {size} cylinder on the beam"
+        self.task_completed_desc = "done placing all cylinders on the beam."
+        self.ee = Suction  # Suction is needed to pick up cylinders
+        self.primitive = None  # No primitive is specified as we are using pick and place actions
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Add the narrow beam (stand) to the environment
+        beam_size = (0.05, 0.6, 0.005)  # Size of the beam
+        beam_urdf = 'stacking/stand.urdf'
+        beam_pose = self.get_random_pose(env, beam_size)
+        env.add_object(beam_urdf, beam_pose, category='fixed')
+
+        # Define the number of cylinders and their sizes
+        n_cylinders = 5
+        cylinder_sizes = sorted([(np.random.uniform(0.02, 0.04), np.random.uniform(0.02, 0.04), np.random.uniform(0.05, 0.15))
+                                 for _ in range(n_cylinders)], key=lambda x: x[2])  # Sort by height
+
+        # Add cylinders to the environment
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinder_colors = [utils.COLORS[color] for color in ['red', 'green', 'blue', 'yellow', 'purple']]
+        cylinders = []
+
+        for i in range(n_cylinders):
+            size = cylinder_sizes[i]
+            color = cylinder_colors[i]
+            pose = self.get_random_pose(env, size)
+            replace = {'SIZE': size, 'COLOR': color}
+            urdf = self.fill_template(cylinder_template, replace)
+            cylinder_id = env.add_object(urdf, pose)
+            cylinders.append(cylinder_id)
+
+        # Define the target poses for the cylinders on the beam
+        beam_x, beam_y, _ = beam_pose[0]
+        beam_width = beam_size[1]
+        spacing = beam_width / (n_cylinders + 1)
+        targ_poses = [((beam_x, beam_y - beam_width / 2 + (i + 1) * spacing, beam_size[2] / 2), beam_pose[1])
+                      for i in range(n_cylinders)]
+
+        # Add goals for each cylinder
+        for i, cylinder_id in enumerate(cylinders):
+            size_str = 'smallest' if i == 0 else 'largest' if i == n_cylinders - 1 else 'medium'
+            language_goal = self.lang_template.format(size=size_str)
+            self.add_goal(objs=[cylinder_id], matches=np.ones((1, 1)), targ_poses=[targ_poses[i]], replace=False,
+                          rotations=False, metric='pose', params=None, step_max_reward=1 / n_cylinders,
+                          language_goal=language_goal)
+
+# Note: The code assumes that the cylinders are placed along the y-axis of the beam.
+# Adjustments may be needed based on the actual orientation of the beam in the environment.

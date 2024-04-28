@@ -1,0 +1,64 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class BowlOnBoxStack(Task):
+    """Stack a red bowl upside down on top of a blue box, ensuring the bowl's rim aligns with the edges of the box."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 2  # We have one motion goal, so max_steps is set to twice that number
+        self.lang_template = "stack the red bowl upside down on top of the blue box"
+        self.task_completed_desc = "done stacking the bowl on the box."
+        self.ee = Suction  # Using Suction end-effector as we need to move the bowl on the Z axis
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the size of the box and bowl
+        box_size = (0.15, 0.15, 0.15)  # x, y, z dimensions for the box
+        bowl_size = (0.12, 0.12, 0.06)  # x, y, z dimensions for the bowl
+
+        # Define the colors for the box and bowl using the utils.COLORS dictionary
+        box_color = utils.COLORS['blue']
+        bowl_color = utils.COLORS['red']
+
+        # Add the blue box to the environment
+        box_pose = self.get_random_pose(env, box_size)
+        box_template = 'box/box-template.urdf'
+        replace = {'DIM': box_size, 'HALF': (box_size[0] / 2, box_size[1] / 2, box_size[2] / 2)}
+        box_urdf = self.fill_template(box_template, replace)
+        box_id = env.add_object(box_urdf, box_pose, 'fixed', color=box_color)
+
+        # Add the red bowl to the environment
+        bowl_pose = self.get_random_pose(env, bowl_size)
+        bowl_urdf = 'bowl/bowl.urdf'
+        bowl_id = env.add_object(bowl_urdf, bowl_pose, color=bowl_color)
+
+        # Define the target pose for the bowl, which should be upside down on the box
+        # The bowl's rim should align with the edges of the box, so we adjust the z-coordinate accordingly
+        target_bowl_pose = (box_pose[0], box_pose[1], box_pose[2] + box_size[2] + bowl_size[2])
+        target_bowl_orientation = p.getQuaternionFromEuler([0, 0, np.pi])  # Upside down orientation (180 degrees rotation around Z-axis)
+
+        # Add the goal for stacking the bowl on the box
+        self.add_goal(objs=[bowl_id], 
+                      matches=np.ones((1, 1)), 
+                      targ_poses=[(target_bowl_pose, target_bowl_orientation)], 
+                      replace=False, 
+                      rotations=True, 
+                      metric='pose', 
+                      params=None, 
+                      step_max_reward=1,  # Full reward for completing the task
+                      language_goal=self.lang_template)
+
+        # The task is set up with one goal to stack the bowl on the box

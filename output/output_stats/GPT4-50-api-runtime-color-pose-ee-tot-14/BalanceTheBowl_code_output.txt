@@ -1,0 +1,64 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class BalanceTheBowl(Task):
+    """Place a specified number of balls of varying colors into a bowl without tipping it over."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Assuming we want to place 5 balls, 2 steps per ball (pick & place)
+        self.lang_template = "put a {color} ball in the bowl"
+        self.task_completed_desc = "done balancing the bowl."
+        self.ee = Suction  # Use suction to pick up balls
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Add a bowl to the environment
+        bowl_size = (0.18, 0.18, 0.06)  # Size of the bowl (x, y, z)
+        bowl_pose = self.get_random_pose(env, bowl_size)  # Get a random pose for the bowl
+        bowl_urdf = 'bowl/bowl.urdf'
+        env.add_object(bowl_urdf, bowl_pose, 'fixed')  # Add bowl as a fixed object
+
+        # Define the number of balls and their colors
+        n_balls = 5
+        ball_colors = ['red', 'blue', 'green', 'yellow', 'purple']
+        ball_size = (0.04, 0.04, 0.04)  # Size of the balls (x, y, z)
+
+        # Add balls to the environment
+        ball_template = 'ball/ball-template.urdf'
+        for i in range(n_balls):
+            color_name = ball_colors[i]
+            color_rgb = utils.COLORS[color_name]  # Get the RGB values for the color
+            ball_pose = self.get_random_pose(env, ball_size)  # Get a random pose for the ball
+
+            # Replace placeholders in the ball URDF template with actual values
+            replace = {'COLOR': color_rgb}
+            ball_urdf = self.fill_template(ball_template, replace)
+
+            # Add the ball to the environment
+            ball_id = env.add_object(ball_urdf, ball_pose)
+            
+            # Define the language goal for placing this ball
+            language_goal = self.lang_template.format(color=color_name)
+
+            # Add the goal for this ball to be in the bowl
+            self.add_goal(objs=[ball_id], 
+                          matches=np.int32([[1]]), 
+                          targ_poses=[bowl_pose],  # Target pose is the same as the bowl's pose
+                          replace=False,  # Each ball has a unique target pose
+                          rotations=False,  # No need to match rotations for balls
+                          metric='pose',  # Use pose metric for evaluation
+                          params=None,  # No additional parameters needed
+                          step_max_reward=1/n_balls,  # Reward is split across all balls
+                          language_goal=language_goal)  # Language goal for this step

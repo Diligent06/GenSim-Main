@@ -1,0 +1,73 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class ContainerizedCylinderStorage(Task):
+    """
+    Arrange five differently colored cylinders into a single container,
+    orienting them vertically and in ascending order of height without toppling.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # We expect to call self.add_goal once, so set max_steps to twice that
+        self.ee = Suction  # Use Suction end-effector to pick and place cylinders vertically
+
+        # Task-specific language templates and descriptions
+        self.lang_template = "put the {color} cylinder in the container"
+        self.task_completed_desc = "done arranging cylinders in the container."
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of cylinders and their colors
+        n_cylinders = 5
+        cylinder_colors = ['red', 'green', 'blue', 'yellow', 'purple']
+
+        # Add container
+        container_size = (0.15, 0.15, 0.15)  # Define a fixed container size
+        container_pose = self.get_random_pose(env, container_size)  # Get a random pose for the container
+        container_template = 'container/container-template.urdf'
+        replace = {'DIM': container_size, 'HALF': tuple(s / 2 for s in container_size)}
+        container_urdf = self.fill_template(container_template, replace)
+        env.add_object(container_urdf, container_pose, 'fixed')
+
+        # Add cylinders
+        cylinders = []
+        for i in range(n_cylinders):
+            # Define cylinder size (diameter, diameter, height)
+            size = (0.04, 0.04, np.random.uniform(0.05, 0.15))
+            pose = self.get_random_pose(env, size)  # Get a random pose for the cylinder
+            color_name = cylinder_colors[i]
+            color = utils.COLORS[color_name]  # Get the RGB values for the color
+
+            # Create the URDF using the template
+            cylinder_template = 'cylinder/cylinder-template.urdf'
+            replace = {'DIM': size, 'HALF': tuple(s / 2 for s in size), 'COLOR': color}
+            cylinder_urdf = self.fill_template(cylinder_template, replace)
+
+            # Add the cylinder to the environment
+            cylinder_id = env.add_object(cylinder_urdf, pose)
+            cylinders.append((cylinder_id, size[2]))  # Store cylinder ID and height
+
+        # Sort cylinders by height in ascending order
+        cylinders.sort(key=lambda x: x[1])
+
+        # Add goal for each cylinder
+        for i, (cylinder_id, _) in enumerate(cylinders):
+            language_goal = self.lang_template.format(color=cylinder_colors[i])
+            self.add_goal(objs=[cylinder_id], matches=np.int32([[1]]), targ_poses=[container_pose],
+                          replace=False, rotations=False, metric='pose', params=None,
+                          step_max_reward=1, language_goal=language_goal)
+
+        # The task is to place cylinders in ascending order of height, so we only need one goal
+        # with step_max_reward set to 1, as there is only one way to correctly arrange the cylinders.

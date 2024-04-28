@@ -55,9 +55,9 @@ class Agent:
         print("online_task_buffer size:", len(self.memory.online_task_buffer))
         total_tasks = self.memory.online_task_buffer
 
-        MAX_NUM = 10
-        if len(total_tasks) > MAX_NUM:
-            total_tasks = dict(random.sample(total_tasks.items(), MAX_NUM))
+        # MAX_NUM = 10
+        # if len(total_tasks) > MAX_NUM:
+        #     total_tasks = dict(random.sample(total_tasks.items(), MAX_NUM))
 
         task_prompt_text = task_prompt_text.replace("PAST_TASKNAME_TEMPLATE", format_dict_prompt(total_tasks))
 

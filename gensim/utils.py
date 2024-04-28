@@ -163,14 +163,23 @@ def extract_code_topdown_offline(res):
 
 def extract_dict(res, prefix="new_task"):
     """ parse task dictionary """
+    pattern = r'Task \d'
+    task_num = re.findall(pattern, res, re.DOTALL)
+    if len(task_num) != 0:
+        task_num = int(task_num[-1][-1]) - int('0') - 1
+    else:
+        task_num = 0
     pattern = r'{(.*?)}'
     code_string = re.findall(pattern, res, re.DOTALL)
     if len(code_string) == 0:
       return ''
-
-    code_string = code_string[0]
+    # print(code_string)
+    if len(code_string) <= task_num:
+        code_string = code_string[task_num]
+    else:
+        code_string = code_string[0]
     code_string = code_string.replace('python', '')
-
+    # print('{'+ code_string.replace("\n","").strip() + '}')
     return prefix + '={'+ code_string.replace("\n","").strip() + '}'
 
 

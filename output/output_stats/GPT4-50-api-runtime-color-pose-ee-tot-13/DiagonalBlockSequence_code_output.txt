@@ -1,0 +1,84 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class DiagonalBlockSequence(Task):
+    """Arrange a sequence of six blocks in a diagonal line on the tabletop,
+    alternating between red and blue, starting from the bottom left to the top right corner of the zone."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 12  # We expect to call self.add_goal six times, so max_steps is twice that number
+        self.lang_template = "place the {color} block at the {position} position"
+        self.task_completed_desc = "completed arranging the blocks in a diagonal sequence."
+        self.ee = Suction  # We need to move objects on the Z axis, so we use the Suction end-effector
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the colors for the blocks
+        red_color = utils.COLORS['red']
+        blue_color = utils.COLORS['blue']
+
+        # Define the size of the blocks
+        block_size = (0.04, 0.04, 0.04)  # x, y, z dimensions
+
+        # Add the goal zone
+        zone_size = (0.3, 0.3, 0)  # x, y, z dimensions
+        zone_pose = self.get_random_pose(env, zone_size)
+        env.add_object('zone/zone.urdf', zone_pose, 'fixed')
+
+        # Initialize list to store block IDs and their target poses
+        blocks = []
+        target_poses = []
+
+        # Define the starting position for the diagonal sequence within the zone
+        start_x = zone_pose[0][0] - zone_size[0] / 2 + block_size[0] / 2
+        start_y = zone_pose[0][1] - zone_size[1] / 2 + block_size[1] / 2
+        start_z = zone_pose[0][2] + block_size[2] / 2
+
+        # Define the step increments for placing blocks diagonally within the zone
+        step_x = zone_size[0] / 5
+        step_y = zone_size[1] / 5
+
+        # Add six blocks alternating between red and blue, and calculate their target poses
+        for i in range(6):
+            # Alternate colors
+            color = red_color if i % 2 == 0 else blue_color
+            color_name = 'red' if i % 2 == 0 else 'blue'
+
+            # Calculate the position for this block in the diagonal sequence
+            position_x = start_x + (i * step_x)
+            position_y = start_y + (i * step_y)
+            position_z = start_z
+
+            # Get a random pose for the block
+            block_pose = self.get_random_pose(env, block_size)
+
+            # Add the block to the environment
+            block_id = env.add_object('stacking/block.urdf', block_pose, color=color)
+            blocks.append(block_id)
+
+            # Define the target pose for this block
+            target_pose = [(position_x, position_y, position_z), (0, 0, 0, 1)]
+            target_poses.append(target_pose)
+
+            # Define the language goal for this block
+            position_desc = f"{i+1}{'st' if i == 0 else 'nd' if i == 1 else 'rd' if i == 2 else 'th'}"
+            language_goal = self.lang_template.format(color=color_name, position=position_desc)
+
+            # Add the goal for this block
+            self.add_goal(objs=[block_id], matches=np.ones((1, 1)), targ_poses=[target_pose],
+                          replace=False, rotations=False, metric='pose', params=None,
+                          step_max_reward=1/6, language_goal=language_goal)
+
+        # The task is set up with six blocks and their corresponding goals

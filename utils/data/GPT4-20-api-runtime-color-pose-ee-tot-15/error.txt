@@ -1,0 +1,4 @@
+IndexError: tuple index out of range
+TypeError: object of type 'numpy.float64' has no len()
+AttributeError: 'Environment' object has no attribute 'get_pose'
+TypeError: object of type 'float' has no len()

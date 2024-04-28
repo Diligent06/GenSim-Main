@@ -1,0 +1,77 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class ColorCoordinatedCylinderStaging(Task):
+    """Arrange a series of differently colored cylinders onto corresponding colored lines, balancing them upright."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 4  # We expect to have 2 goals, so we set max_steps to twice that number
+        self.ee = Suction  # We need to move objects on the Z axis, so we use the Suction end-effector
+        self.lang_template = "place the {color} cylinder on the {color} line"
+        self.task_completed_desc = "done arranging cylinders."
+        self.additional_reset()
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the number of cylinders and lines
+        n_cylinders = 2
+
+        # Define cylinder size
+        cylinder_size = (0.05, 0.05, 0.15)  # (radius, radius, height)
+
+        # Define colors for cylinders and lines
+        cylinder_colors = ['red', 'green']
+        line_colors = ['red', 'green']
+
+        # Add cylinders
+        cylinders = []
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        for i in range(n_cylinders):
+            # Get a random pose for the cylinder
+            pose = self.get_random_pose(env, cylinder_size)
+            # Get the color for the cylinder
+            color = utils.COLORS[cylinder_colors[i]]
+            # Replace the placeholders in the URDF template
+            replace = {'COLOR': color, 'SIZE': cylinder_size}
+            # Fill the template and add the object to the environment
+            urdf = self.fill_template(cylinder_template, replace)
+            cylinder_id = env.add_object(urdf, pose)
+            cylinders.append((cylinder_id, pose))
+
+        # Add lines
+        line_template = 'line/single-green-line-template.urdf'
+        for i, color_name in enumerate(line_colors):
+            # Get the color for the line
+            color = utils.COLORS[color_name]
+            # Lines are thin and long, we only need to specify the x and y size
+            line_size = (0.01, 0.5)  # (thickness, length)
+            # Get a random pose for the line
+            line_pose = self.get_random_pose(env, line_size)
+            # Replace the placeholders in the URDF template
+            replace = {'COLOR': color, 'SIZE': line_size}
+            # Fill the template and add the object to the environment
+            urdf = self.fill_template(line_template, replace)
+            env.add_object(urdf, line_pose, 'fixed')
+
+            # Define the goal for each cylinder to be placed on the corresponding line
+            # The target pose is the same as the initial pose but with a different z-coordinate to be above the line
+            target_pose = (line_pose[0], line_pose[1])
+            language_goal = self.lang_template.format(color=color_name)
+            self.add_goal(objs=[cylinders[i][0]], matches=np.ones((1, 1)), targ_poses=[target_pose], replace=True,
+                          rotations=False, metric='pose', params=None, step_max_reward=1,
+                          language_goal=language_goal)
+
+# Note: The task assumes that the cylinders are to be placed on the lines, not necessarily balanced on them.
+# If balancing is required, additional physics constraints would need to be considered in the simulation environment.

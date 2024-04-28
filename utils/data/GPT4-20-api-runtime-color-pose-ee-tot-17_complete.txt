@@ -1,0 +1,9 @@
+./output/output_stats/GPT4-20-api-runtime-color-pose-ee-tot-17/ColorCodedBallSorting_code_output.txt
+./output/output_stats/GPT4-20-api-runtime-color-pose-ee-tot-17/ColorCodedCylinderPlacement_code_output.txt
+./output/output_stats/GPT4-20-api-runtime-color-pose-ee-tot-17/ColorMatchCylinderPlacement_code_output.txt
+./output/output_stats/GPT4-20-api-runtime-color-pose-ee-tot-17/CylinderColorMatch_code_output.txt
+./output/output_stats/GPT4-20-api-runtime-color-pose-ee-tot-17/CylinderContainerOrganization_code_output.txt
+./output/output_stats/GPT4-20-api-runtime-color-pose-ee-tot-17/CylinderPrecisionMatching_code_output.txt
+./output/output_stats/GPT4-20-api-runtime-color-pose-ee-tot-17/CylinderPrecisionPlacement_code_output.txt
+./output/output_stats/GPT4-20-api-runtime-color-pose-ee-tot-17/CylinderStandPlacement_code_output.txt
+./output/output_stats/GPT4-20-api-runtime-color-pose-ee-tot-17/PrecisePlacementCylinderLine_code_output.txt

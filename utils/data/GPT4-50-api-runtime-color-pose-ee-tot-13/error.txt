@@ -1,0 +1,12 @@
+TypeError: object of type 'float' has no len()
+AttributeError: module 'cliport.tasks.primitives' has no attribute 'pick_place'
+AttributeError: module 'cliport.tasks.primitives' has no attribute 'pick_place'
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Su\\GenSim-main/cliport/environments/assets/line/single-red-line.urdf'
+TypeError: 'NoneType' object is not callable
+AttributeError: module 'cliport.tasks.primitives' has no attribute 'pick_place'
+TypeError: 'NoneType' object is not iterable
+IndexError: list index out of range
+AttributeError: module 'cliport.tasks.primitives' has no attribute 'pick_place'
+TypeError: 'float' object is not subscriptable
+TypeError: 'tuple' object does not support item assignment
+AttributeError: 'Spatula' object has no attribute 'detect_contact'

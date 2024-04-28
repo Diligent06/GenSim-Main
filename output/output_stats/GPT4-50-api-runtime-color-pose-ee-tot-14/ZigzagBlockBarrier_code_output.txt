@@ -1,0 +1,83 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class ZigzagBlockBarrier(Task):
+    """
+    Create a zigzag barrier on the table using a sequence of five alternately colored blocks,
+    ensuring that each block is touching the previous one at an angle to form a continuous line.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Set to twice the number of blocks to allow for adjustments
+        self.ee = Suction  # Use Suction end-effector to pick and place blocks
+        self.lang_template = "place the {color} block to continue the zigzag barrier"
+        self.task_completed_desc = "done creating zigzag barrier."
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the colors for the blocks, alternating between two colors
+        colors = [utils.COLORS['red'], utils.COLORS['blue']]
+        
+        # Define the size of the blocks
+        block_size = (0.04, 0.04, 0.04)  # x, y, z dimensions
+        block_urdf = 'stacking/block.urdf'
+
+        # Initialize an empty list to store block IDs
+        blocks = []
+
+        # Add five blocks to the environment with alternating colors
+        for i in range(5):
+            # Get a random pose for the block
+            block_pose = self.get_random_pose(env, block_size)
+            # Add the block to the environment and store its ID
+            block_id = env.add_object(block_urdf, block_pose, color=colors[i % 2])
+            blocks.append(block_id)
+
+        # Define the initial angle for the zigzag pattern
+        angle = np.pi / 4  # 45 degrees
+
+        # Add goals for each block to be placed in a zigzag pattern
+        for i in range(1, 5):
+            # Calculate the position for the next block in the zigzag pattern
+            prev_block_pose = p.getBasePositionAndOrientation(blocks[i - 1])
+            dx = 0.04 * np.cos(angle)  # Calculate the x offset based on the angle
+            dy = 0.04 * np.sin(angle)  # Calculate the y offset based on the angle
+            new_x = prev_block_pose[0][0] + dx
+            new_y = prev_block_pose[0][1] + dy
+            new_z = block_size[2] / 2  # Z-coordinate is half the block's height
+            # The orientation is the same as the previous block
+            new_orientation = prev_block_pose[1]
+
+            # Define the target pose for the current block
+            target_pose = [(new_x, new_y, new_z), new_orientation]
+
+            # Add the goal for the current block
+            self.add_goal(
+                objs=[blocks[i]],  # Current block
+                matches=np.ones((1, 1)),  # Match with the target pose
+                targ_poses=[target_pose],  # Target pose
+                replace=False,  # Do not replace other goals
+                rotations=True,  # Allow rotations
+                metric='pose',  # Use pose metric for evaluation
+                params=None,  # No additional parameters
+                step_max_reward=1,  # Full reward for completing this step
+                language_goal=self.lang_template.format(color=colors[i % 2])  # Language goal
+            )
+
+            # Alternate the angle for the next block to create a zigzag pattern
+            angle = -angle
+
+# Instantiate the task
+task = ZigzagBlockBarrier()

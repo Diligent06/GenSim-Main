@@ -1,0 +1,59 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class PrecisionBowlStacking(Task):
+    """Stack three differently colored bowls inside each other without toppling them over."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 6  # We will have 3 goals, so max_steps is set to twice that number
+        self.lang_template = "stack the {color} bowl inside the {target_color} bowl"
+        self.task_completed_desc = "done stacking bowls."
+        self.ee = Suction  # Suction is needed to lift bowls on the Z axis
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Define the colors for the bowls
+        colors = ['red', 'green', 'blue']
+        np.random.shuffle(colors)  # Shuffle colors to randomize the order of stacking
+
+        # Define the sizes for the bowls, from largest to smallest
+        sizes = [(0.18, 0.18, 0.08), (0.15, 0.15, 0.06), (0.12, 0.12, 0.04)]
+
+        # Add bowls to the environment
+        bowls = []
+        for i in range(3):
+            # Get a random pose for the bowl
+            pose = self.get_random_pose(env, sizes[i])
+            # Define the bowl's URDF using the color and size
+            bowl_urdf = 'bowl/bowl.urdf'
+            # Add the bowl to the environment
+            bowl_id = env.add_object(bowl_urdf, pose, color=utils.COLORS[colors[i]])
+            bowls.append((bowl_id, pose))
+
+        # Define the goals for stacking the bowls
+        for i in range(2, -1, -1):
+            # The target is the next bowl in the sequence (or the table for the largest bowl)
+            target_color = 'table' if i == 2 else colors[i+1]
+            # The language goal describes the action to be performed
+            language_goal = self.lang_template.format(color=colors[i], target_color=target_color)
+            # The target pose is the initial pose of the next bowl (or a pose on the table)
+            target_pose = bowls[i+1][1] if i < 2 else [(0.5, 0, 0.01), (0, 0, 0, 1)]
+            # Add the goal to the task
+            self.add_goal(objs=[bowls[i][0]], matches=np.ones((1, 1)), targ_poses=[target_pose], replace=False,
+                          rotations=True, metric='pose', params=None, step_max_reward=1/3,
+                          language_goal=language_goal)
+
+        # Note: The target poses for the bowls are set to the initial poses of the next bowl in the sequence,
+        # or a pose on the table for the largest bowl. This ensures that the bowls are stacked in the correct order.

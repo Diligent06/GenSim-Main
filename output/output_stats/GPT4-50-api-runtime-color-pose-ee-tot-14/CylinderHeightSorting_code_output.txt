@@ -1,0 +1,81 @@
+import numpy as np
+import os
+import pybullet as p
+import random
+from cliport.tasks import primitives
+from cliport.tasks.grippers import Spatula
+from cliport.tasks.task import Task
+from cliport.utils import utils
+import numpy as np
+from cliport.tasks.task import Task
+from cliport.utils import utils
+from cliport.tasks.grippers import Suction
+
+class CylinderHeightSorting(Task):
+    """Pick up cylinders of varying heights and arrange them in ascending order on the zone marks on the tabletop."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_steps = 10  # Assuming we have 5 cylinders, 2 steps per cylinder (pick and place)
+        self.lang_template = "place the {height} cylinder on the {position} mark"
+        self.task_completed_desc = "done sorting cylinders by height."
+        self.ee = Suction  # Suction end-effector is needed to pick up cylinders
+
+    def reset(self, env):
+        super().reset(env)
+
+        # Number of cylinders to sort
+        n_cylinders = 5
+
+        # Define the size range for the cylinders (height, radius)
+        height_range = (0.05, 0.15)
+        radius = 0.02  # Fixed radius for all cylinders
+
+        # Generate random heights for the cylinders
+        heights = np.linspace(height_range[0], height_range[1], n_cylinders)
+
+        # Shuffle the heights to randomize initial placement
+        np.random.shuffle(heights)
+
+        # Add target zones
+        zone_urdf = 'zone/zone.urdf'
+        zone_poses = []
+        for i in range(n_cylinders):
+            zone_pose = self.get_random_pose(env, (0.05, 0.05, 0))  # Zones are small squares
+            env.add_object(zone_urdf, zone_pose, 'fixed')
+            zone_poses.append(zone_pose)
+
+        # Add cylinders with varying heights
+        cylinder_template = 'cylinder/cylinder-template.urdf'
+        cylinders = []
+        for i in range(n_cylinders):
+            # Generate a random pose for the cylinder
+            pose = self.get_random_pose(env, (radius, radius, heights[i]))
+
+            # Define the cylinder color
+            color = utils.COLORS['silver']  # Let's make all cylinders silver
+
+            # Replace the template URDF with the specific size and color for this cylinder
+            replace = {'HEIGHT': heights[i], 'RADIUS': radius, 'COLOR': color}
+            cylinder_urdf = self.fill_template(cylinder_template, replace)
+
+            # Add the cylinder to the environment
+            cylinder_id = env.add_object(cylinder_urdf, pose)
+            cylinders.append(cylinder_id)
+
+        # Sort the target zones by their x-coordinate (ascending)
+        zone_poses.sort(key=lambda x: x[0][0])
+
+        # Add goals for each cylinder to be placed on the corresponding zone mark
+        for i, height in enumerate(sorted(heights)):
+            # Define the language goal for placing this cylinder
+            language_goal = self.lang_template.format(height=f"{height:.2f}m", position=utils.ordinal(i + 1))
+
+            # Add the goal for this cylinder
+            self.add_goal(objs=[cylinders[i]], matches=np.int32([[1]]), targ_poses=[zone_poses[i]], replace=True,
+                          rotations=True, metric='pose', params=None, step_max_reward=1 / n_cylinders,
+                          language_goal=language_goal)
+
+        # The task is to sort the cylinders by height, so we need to ensure the heights match the target zones
+        # We will use the initial poses of the cylinders as their target poses, sorted by height
+        # The cylinders will be placed in ascending order from left to right on the table

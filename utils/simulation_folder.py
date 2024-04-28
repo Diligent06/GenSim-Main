@@ -90,7 +90,7 @@ def main(cfg):
     if p.isConnected():
         p.disconnect()
     files = []
-    episode_name = 'GPT4-50-api-runtime-color-pose-ee-12'
+    episode_name = 'GPT4-20-api-runtime-color-pose-ee-tot-17'
     code_folder_path = './output/output_stats/' + episode_name + '/'
     output_file_path = './utils/data/' + episode_name + '_complete.txt'
     total_file = 0
@@ -111,7 +111,7 @@ def main(cfg):
           if code_file_path[i] == '/':
               task_name = code_file_path[i+1:-16]
               break
-      print(task_name)
+    #   print(task_name)
       with open(code_file_path, 'r', encoding='utf-8') as f:
           generated_code = f.read()
           f.close()
@@ -123,19 +123,22 @@ def main(cfg):
           to_print = highlight(f"{str(traceback.format_exc())}", PythonLexer(), TerminalFormatter())
           print("========================================================")
           print("Syntax Exception:", to_print)
-      
+      complete_flag = 0
       try:
           # Collect environment and collect data from oracle demonstrations.
           while total_cnt <= cfg['max_env_run_cnt']:
+              total_reward = 0
               total_cnt += 1
               # Set seeds.
               episode = []
               total_reward = run_one_episode(cfg, dataset, expert, env, task, episode, seed)
 
               reset_success_cnt += 1
-              env_success_cnt += total_reward > 0.99
               if total_reward > 0.99:
-                output_file.write(code_file_path + '\n')
+                if not complete_flag:
+                    output_file.write(code_file_path + '\n')
+                    env_success_cnt += 1
+                complete_flag = 1
 
       except:
           to_print = highlight(f"{str(traceback.format_exc())}", PythonLexer(), TerminalFormatter())

@@ -140,15 +140,35 @@ reasons: The only action primitives as pick and place. One cannot use a spatula 
 }
 reasons: Piling or stacking balls are physically infeasible in the simulation.
 
-
-
 =========
-Now please describe the new task in natural languages and explain its novelty and challenges. Format the answer in a python dictionary with keys "task-name" and value type string, "task-description" (one specific sentence) and value type string, and "assets-used" and value type list of strings. Note that
+Now you are asked to generate three new tasks in natural language and choose one of them that you think is the most diverse compared to what is currently available. And briefly explain what your reasons for choosing it are and what is innovative about this task.
+In response, you must give your chosen answer at the end, e.g., Task 1, Task 2, etc.
+Format the answer in a python dictionary with keys "task-name" and value type string, "task-description" (one specific sentence) and value type string, and "assets-used" and value type list of strings. Note that
 
 - Do not use assets that are not in the list above. 
 - Tasks that have more colors and shapes are interesting.
 - Be as specific as possible about the number, shape, and color of each asset in the task descriptions. 
 - The task need to obey physics and remain feasible.
 
+For example:
+Task 1:
+{
+    "task-name": "sort-cylinders-box"
+    "task-description": "Sort differently colored cylindrical objects into a box where each corner is marked for a specific color."
+    "assets-used": ["box/box-template.urdf", "cylinder/cylinder-template.urdf", "corner/corner-template.urdf"]
+}
+Task 2:
+{
+    "task-name": "stack-cylinders-pallet"
+    "task-description": "Stack differently sized cylinders onto a pallet, with the largest cylinders at the bottom and the smallest at the top." 
+    "assets-used": ["pallet/pallet.urdf", "cylinder/cylinder-template.urdf"]
+}
+Task 3: 
+{
+    "task-name": "ball-cylinder-insertion"
+    "task-description": "Pick up balls of different sizes and fit them into a cylinder of matching size."
+    "assets-used": ["ball/ball-template.urdf", "cylinder/cylinder-template.urdf"]
+}
+Answer: I choose Task 2: "stack-cylinders-pallet".
 
-
+Reason: While there are tasks involving stacking or sorting boxes or blocks, none of them involves stacks of cylinders. This task is sort of similar to the task of stacking blocks into a pyramid but it uses cylinders and a pallet instead of blocks and a stand. It also involves arranging objects in order of size which adds an additional level of complexity.

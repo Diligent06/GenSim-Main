@@ -1,0 +1,39 @@
+place the {color} cylinder on the beam
+place the {color} cylinder on the stand
+put the {color} ball in the {color} bowl
+place the {size} bowl in the designated zone
+put the {color} cylinder in the {color} bowl
+stack {num} {color} cylinders in the {bowl_color} bowl
+put the {color} bowl inside the {target_color} bowl
+put the {color} lid on the {color} bowl
+place the {color} bowl on the {target_color} zone on the pallet
+transfer the {color} ball from the {source_color} bowl to the {target_color} bowl
+place the {color} box in the matching {color} zone
+place the {color} cylinder on the {color} strip on the pallet
+put the {color} cylinder in the {color} box
+place the {color} cylinder on the {color} line
+put the {color} ball in the {color} container
+place the {color} box on the stand
+put the {color} blocks in the {color} container
+put the {size} cylinder in the container
+place the {size} cylinder on the beam
+place the {color} cylinder on the green line
+place the {color} cylinder around the bowl without touching it
+put the {color} cylinder in the {color} bowl
+place the {color} cylinder on the {height} stand
+pass the {color} cylinder through the {color} hoop and place it on the pallet
+pick up the cylinder and place it upside down on the stand
+place the {color} cylinder in the {color} zone
+place the {color} cylinder in the corresponding container
+stack the {color} cylinder on the {target} stand
+put the {color} cylinder in the {color} zone
+stack the {color} cylinder on top
+align the {color} cylinders in the zone
+place the {color} block at the {position} position
+stack the {color} cylinder on the {location} of the stand
+put the {color} ball in the {color} zone
+put the {color} block in the {color} zone
+stack the {color} block on the pallet to form a pyramid
+None
+place the {size} cylinder in the designated zone
+move the {size} cylinder to the {zone} zone
