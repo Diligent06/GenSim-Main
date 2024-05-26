@@ -1,0 +1,3 @@
+AttributeError: 'Environment' object has no attribute 'shuffle_objects'
+KeyError: 'visual'
+TypeError: object of type 'float' has no len()

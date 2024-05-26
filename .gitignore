@@ -152,3 +152,4 @@ cliport/environments/assets_backup
 demo*.log
 outputs
 multirun
+output/output_stats/

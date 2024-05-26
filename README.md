@@ -40,11 +40,9 @@ utils
 
 ```
 # windows
-set UTILS_ROOT=C:\Users\Su\GenSim-main\utils
 set GENSIM_ROOT=C:\Users\Su\GenSim-main
 set OPENAI_KEY=your_gpt_api
 # linux
-export UTILS_ROOT=$(pwd) 
 export GENSIM_ROOT=$(pwd) 
 export OPENAI_KEY=your_gpt_api
 ```

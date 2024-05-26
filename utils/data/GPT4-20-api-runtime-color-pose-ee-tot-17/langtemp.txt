@@ -1,0 +1,18 @@
+place the {color} ball on the {color} slot on the stand
+put the {color} ball in the {color} zone
+put the {color} ball in the {color} zone
+put the {color} ball in the {color} bowl
+put the {color} ball in the {color} zone
+place the {color} cylinder onto the {color} zone
+place the {color} cylinder on the {color} circle
+balance the {color} cylinder on the beam
+put the {color} cylinder in the {color} zone
+place the {color} cylinder in the container in {position} position
+place the {color} cylinder in order from shortest to tallest on the line
+sort the cylinders by height on the green line
+place the {color} cylinder in the {color} zone
+place the {color} cylinder on the {color} line
+place the {color} cylinder on the {color} spot on the stand
+move the {color} object to the target location
+place the {color} bowl on the pallet in the correct order
+place the {color} cylinder on the {color} line

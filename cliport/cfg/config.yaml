@@ -28,3 +28,11 @@ reflection_agreement_num: 2 # how many models that need to agree to add a new ta
 target_task_name: "" # specific desired task name
 save_code_early: False # ignore test and save the code after implementation
 load_task_num: -1 # how many tasks to load from offline
+
+
+trial_name: GPT3.5-50-error-api-1                                       # generation iteration name
+trial_result_folder: ${root_dir}/output/output_stats/${trial_name}   # generation code file restore folder path
+eval_output_folder: ${root_dir}/utils/data/${trial_name}            # metric evaluate result output folder path
+use_api: True                         # use api prompt or not
+use_error: True                       # use error code prompot or not
+

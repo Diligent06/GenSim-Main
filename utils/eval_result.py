@@ -3,9 +3,9 @@ import hydra
 from utils import *
 import os
 
-@hydra.main(config_path='./config', config_name='data', version_base="1.2")
+@hydra.main(config_path='../cliport/cfg', config_name='data', version_base="1.2")
 def main(cfg):
-    output_folder = cfg.output_folder
+    output_folder = cfg.eval_output_folder
     folder = cfg.trial_result_folder
 
     if not os.path.exists(output_folder):
