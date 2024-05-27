@@ -1,7 +1,0 @@
-TypeError: 'int' object is not subscriptable
-SyntaxError: EOL while scanning string literal
-TypeError: unhashable type: 'list'
-TypeError: object of type 'numpy.float64' has no len()
-TypeError: can only concatenate tuple (not "float") to tuple
-AttributeError: module 'cliport.utils.utils' has no attribute 'ordinal'
-AttributeError: 'ZoneBallArrangement' object has no attribute 'env'

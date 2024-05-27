@@ -1,8 +1,0 @@
-pybullet.error: Invalid input: expected positionA [x,y,z], orientationA [x,y,z,w], positionB, orientationB.
-AttributeError: module 'cliport.tasks.primitives' has no attribute 'pick_place'
-AttributeError: module 'cliport.tasks.primitives' has no attribute 'pick_place'
-AttributeError: 'tuple' object has no attribute 'get_dict'
-SystemError: <built-in function multiplyTransforms> returned a result with an error set
-SyntaxError: EOL while scanning string literal
-pybullet.error: Invalid input: expected positionA [x,y,z], orientationA [x,y,z,w], positionB, orientationB.
-SyntaxError: EOL while scanning string literal

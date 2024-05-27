@@ -1,1 +1,0 @@
-Diversity metric is : 0.082161

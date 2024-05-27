@@ -1,3 +1,0 @@
-SystemError: <built-in function multiplyTransforms> returned a result with an error set
-AttributeError: 'CylinderPrecisionStacking' object has no attribute 'lang_template'
-IndexError: invalid index to scalar variable.

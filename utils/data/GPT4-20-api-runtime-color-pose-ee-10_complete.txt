@@ -1,7 +1,0 @@
-./output/output_stats/GPT4-20-api-runtime-color-pose-ee-10/ColorCodedCylinderArrangement_code_output.txt
-./output/output_stats/GPT4-20-api-runtime-color-pose-ee-10/ColorGradientTower_code_output.txt
-./output/output_stats/GPT4-20-api-runtime-color-pose-ee-10/CylinderColorMatch_code_output.txt
-./output/output_stats/GPT4-20-api-runtime-color-pose-ee-10/CylinderHeightSorting_code_output.txt
-./output/output_stats/GPT4-20-api-runtime-color-pose-ee-10/CylinderTowerConstruction_code_output.txt
-./output/output_stats/GPT4-20-api-runtime-color-pose-ee-10/HeightOrderedCylinderPlacement_code_output.txt
-./output/output_stats/GPT4-20-api-runtime-color-pose-ee-10/PalletCylinderPattern_code_output.txt
