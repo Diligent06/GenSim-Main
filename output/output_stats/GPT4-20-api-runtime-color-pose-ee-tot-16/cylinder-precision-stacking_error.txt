@@ -1,9 +1,0 @@
-Traceback (most recent call last):
-  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 184, in simulate_task
-    task, dataset, env, expert = self.setup_env()
-  File "C:\Users\Su\GenSim-main\gensim\sim_runner.py", line 118, in setup_env
-    task = eval(self.curr_task_name)()
-  File "<string>", line 28, in __init__
-  File "C:\Users\Su\GenSim-main\cliport\tasks\task.py", line 71, in additional_reset
-    if 'bowl' in self.lang_template:
-AttributeError: 'CylinderPrecisionStacking' object has no attribute 'lang_template'
