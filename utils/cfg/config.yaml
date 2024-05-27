@@ -1,0 +1,14 @@
+root_dir: ${oc.env:GENSIM_ROOT} # set this ENV variable if you didn't `python setup.py develop`
+
+tag: default
+
+gpt_model: "gpt-3.5-turbo-16k" # "gpt-4-1106-preview" # which openai gpt model to use
+openai_key: ${oc.env:OPENAI_KEY}
+
+trial_name: GPT3.5-50-error-api-1                                       # generation iteration name
+trial_result_folder: ${root_dir}/output/output_stats/${trial_name}   # generation code file restore folder path
+eval_output_folder: ${root_dir}/utils/data/${trial_name}            # metric evaluate result output folder path
+use_api: True                         # use api prompt or not
+use_error: True                       # use error code prompot or not
+
+

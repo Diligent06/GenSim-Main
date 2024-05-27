@@ -1,0 +1,8 @@
+defaults:
+  - config
+
+hydra:
+  run:
+    dir: ${root_dir}
+
+task_generate_output_folder: ${root_dir}/utils/task_generation_folder
